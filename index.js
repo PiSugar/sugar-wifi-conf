@@ -163,7 +163,7 @@ IndicateOnlyCharacteristic.prototype.onIndicate = function() {
 
 function SampleService() {
   SampleService.super_.call(this, {
-    uuid: 'FD2B4448AA0F4A15A62FEB0BE77A0F4C',
+    uuid: 'FD2B4448AA0F4A15A62FEB0BE77A0000',
     characteristics: [
       new StaticReadOnlyCharacteristic(),
       new DynamicReadOnlyCharacteristic(),
@@ -181,7 +181,7 @@ bleno.on('stateChange', function(state) {
   console.log('on -> stateChange: ' + state + ', address = ' + bleno.address);
 
   if (state === 'poweredOn') {
-    bleno.startAdvertising('raspberrypi', ['FD2B4448AA0F4A15A62FEB0BE77A0F4C']);
+    bleno.startAdvertising('raspberrypi', ['FD2B4448-AA0F-4A15-A62F-EB0BE77A0000']);
   } else {
     bleno.stopAdvertising();
   }
