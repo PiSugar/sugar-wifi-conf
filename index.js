@@ -1,15 +1,15 @@
-var util = require('util');
+let util = require('util');
 
-var bleno = require('./index');
+let bleno = require('bleno');
 
 
-var BlenoPrimaryService = bleno.PrimaryService;
-var BlenoCharacteristic = bleno.Characteristic;
-var BlenoDescriptor = bleno.Descriptor;
+let BlenoPrimaryService = bleno.PrimaryService;
+let BlenoCharacteristic = bleno.Characteristic;
+let BlenoDescriptor = bleno.Descriptor;
 
 console.log('bleno');
 
-var StaticReadOnlyCharacteristic = function() {
+let StaticReadOnlyCharacteristic = function() {
   StaticReadOnlyCharacteristic.super_.call(this, {
     uuid: 'fffffffffffffffffffffffffffffff1',
     properties: ['read'],
@@ -24,7 +24,7 @@ var StaticReadOnlyCharacteristic = function() {
 };
 util.inherits(StaticReadOnlyCharacteristic, BlenoCharacteristic);
 
-var DynamicReadOnlyCharacteristic = function() {
+let DynamicReadOnlyCharacteristic = function() {
   DynamicReadOnlyCharacteristic.super_.call(this, {
     uuid: 'fffffffffffffffffffffffffffffff2',
     properties: ['read']
@@ -34,8 +34,8 @@ var DynamicReadOnlyCharacteristic = function() {
 util.inherits(DynamicReadOnlyCharacteristic, BlenoCharacteristic);
 
 DynamicReadOnlyCharacteristic.prototype.onReadRequest = function(offset, callback) {
-  var result = this.RESULT_SUCCESS;
-  var data = new Buffer('dynamic value');
+  let result = this.RESULT_SUCCESS;
+  let data = new Buffer('dynamic value');
 
   if (offset > data.length) {
     result = this.RESULT_INVALID_OFFSET;
@@ -47,7 +47,7 @@ DynamicReadOnlyCharacteristic.prototype.onReadRequest = function(offset, callbac
   callback(result, data);
 };
 
-var LongDynamicReadOnlyCharacteristic = function() {
+let LongDynamicReadOnlyCharacteristic = function() {
   LongDynamicReadOnlyCharacteristic.super_.call(this, {
     uuid: 'fffffffffffffffffffffffffffffff3',
     properties: ['read']
@@ -57,10 +57,10 @@ var LongDynamicReadOnlyCharacteristic = function() {
 util.inherits(LongDynamicReadOnlyCharacteristic, BlenoCharacteristic);
 
 LongDynamicReadOnlyCharacteristic.prototype.onReadRequest = function(offset, callback) {
-  var result = this.RESULT_SUCCESS;
-  var data = new Buffer(512);
+  let result = this.RESULT_SUCCESS;
+  let data = new Buffer(512);
 
-  for (var i = 0; i < data.length; i++) {
+  for (let i = 0; i < data.length; i++) {
     data[i] = i % 256;
   }
 
@@ -74,7 +74,7 @@ LongDynamicReadOnlyCharacteristic.prototype.onReadRequest = function(offset, cal
   callback(result, data);
 };
 
-var WriteOnlyCharacteristic = function() {
+let WriteOnlyCharacteristic = function() {
   WriteOnlyCharacteristic.super_.call(this, {
     uuid: 'fffffffffffffffffffffffffffffff4',
     properties: ['write', 'writeWithoutResponse']
@@ -89,7 +89,7 @@ WriteOnlyCharacteristic.prototype.onWriteRequest = function(data, offset, withou
   callback(this.RESULT_SUCCESS);
 };
 
-var NotifyOnlyCharacteristic = function() {
+let NotifyOnlyCharacteristic = function() {
   NotifyOnlyCharacteristic.super_.call(this, {
     uuid: 'fffffffffffffffffffffffffffffff5',
     properties: ['notify']
@@ -103,7 +103,7 @@ NotifyOnlyCharacteristic.prototype.onSubscribe = function(maxValueSize, updateVa
 
   this.counter = 0;
   this.changeInterval = setInterval(function() {
-    var data = new Buffer(4);
+    let data = new Buffer(4);
     data.writeUInt32LE(this.counter, 0);
 
     console.log('NotifyOnlyCharacteristic update value: ' + this.counter);
@@ -125,7 +125,7 @@ NotifyOnlyCharacteristic.prototype.onNotify = function() {
   console.log('NotifyOnlyCharacteristic on notify');
 };
 
-var IndicateOnlyCharacteristic = function() {
+let IndicateOnlyCharacteristic = function() {
   IndicateOnlyCharacteristic.super_.call(this, {
     uuid: 'fffffffffffffffffffffffffffffff6',
     properties: ['indicate']
@@ -139,7 +139,7 @@ IndicateOnlyCharacteristic.prototype.onSubscribe = function(maxValueSize, update
 
   this.counter = 0;
   this.changeInterval = setInterval(function() {
-    var data = new Buffer(4);
+    let data = new Buffer(4);
     data.writeUInt32LE(this.counter, 0);
 
     console.log('IndicateOnlyCharacteristic update value: ' + this.counter);
