@@ -25,5 +25,8 @@
   "bugs": {
     "url": "https://github.com/PiSugar/sugar-wifi-conf/issues"
   },
-  "homepage": "https://github.com/PiSugar/sugar-wifi-conf#readme"
+  "homepage": "https://github.com/PiSugar/sugar-wifi-conf#readme",
+  "dependencies": {
+    "bleno": "^0.5.0"
+  }
 }
