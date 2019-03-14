@@ -1,0 +1,29 @@
+{
+  "name": "sugar-wifi-conf",
+  "version": "1.0.0",
+  "description": "",
+  "main": "index.js",
+  "scripts": {
+    "test": "echo \"Error: no test specified\" && exit 1"
+  },
+  "repository": {
+    "type": "git",
+    "url": "git+https://github.com/PiSugar/sugar-wifi-conf.git"
+  },
+  "keywords": [
+    "raspberrypi",
+    "raspberry",
+    "wifi",
+    "ble",
+    "config",
+    "miniapp",
+    "weixin",
+    "wechat"
+  ],
+  "author": "Jdaie Lin",
+  "license": "ISC",
+  "bugs": {
+    "url": "https://github.com/PiSugar/sugar-wifi-conf/issues"
+  },
+  "homepage": "https://github.com/PiSugar/sugar-wifi-conf#readme"
+}
