@@ -1,207 +1,80 @@
-let util = require('util');
+let util = require('util')
+let bleno = require('bleno')
+let UUID = require('./sugar-uuid')
 
-let bleno = require('bleno');
+let ServiceNameCharacteristic = require('./characteristics/service-name')
+let DeviceModelCharacteristic = require('./characteristics/devie-model')
+let WifiNameCharacteristic = require('./characteristics/wifi-name')
+let IpAddressCharacteristic = require('./characteristics/ip-address')
+let InputCharacteristic = require('./characteristics/input-notify').InputCharacteristic
+let NotifyMassageCharacteristic = require('./characteristics/input-notify').NotifyMassageCharacteristic
+
+let BlenoPrimaryService = bleno.PrimaryService
+let BlenoCharacteristic = bleno.Characteristic
+let BlenoDescriptor = bleno.Descriptor
+
+console.log('Bleno starting...')
 
 
-let BlenoPrimaryService = bleno.PrimaryService;
-let BlenoCharacteristic = bleno.Characteristic;
-let BlenoDescriptor = bleno.Descriptor;
-
-console.log('bleno');
-
-// FD2B4448AA0F4A15A62FEB0BE77A0900 Raspberry Pi 3 Model A+
-// FD2B4448AA0F4A15A62FEB0BE77A0800 Raspberry Pi 3 B+
-// FD2B4448AA0F4A15A62FEB0BE77A0700 Raspberry Pi Zero WH
-// FD2B4448AA0F4A15A62FEB0BE77A0600 Raspberry Pi Zero W
-// FD2B4448AA0F4A15A62FEB0BE77A0500 Raspberry Pi 3
-// FD2B4448AA0F4A15A62FEB0BE77A0400 Raspberry Pi Zero
-// FD2B4448AA0F4A15A62FEB0BE77A0300 Raspberry Pi 2
-// FD2B4448AA0F4A15A62FEB0BE77A0200 Raspberry Pi A+
-// FD2B4448AA0F4A15A62FEB0BE77A0100 Raspberry Pi B
-// FD2B4448AA0F4A15A62FEB0BE77A0000 (Unknown Model)
-
-let StaticReadOnlyCharacteristic = function() {
-  StaticReadOnlyCharacteristic.super_.call(this, {
-    uuid: 'FD2B4448AA0F4A15A62FEB0BE77A0001',
-    properties: ['read'],
-    value: new Buffer('value'),
-    descriptors: [
-      new BlenoDescriptor({
-        uuid: '1200',
-        value: 'PiSugar BLE Wifi Config Service'
-      })
-    ]
-  });
-};
-util.inherits(StaticReadOnlyCharacteristic, BlenoCharacteristic);
-
-let DynamicReadOnlyCharacteristic = function() {
-  DynamicReadOnlyCharacteristic.super_.call(this, {
-    uuid: 'FD2B4448AA0F4A15A62FEB0BE77A0002',
-    properties: ['read']
-  });
-};
-
-util.inherits(DynamicReadOnlyCharacteristic, BlenoCharacteristic);
-
-DynamicReadOnlyCharacteristic.prototype.onReadRequest = function(offset, callback) {
-  let result = this.RESULT_SUCCESS;
-  let data = new Buffer('dynamic value');
-
-  if (offset > data.length) {
-    result = this.RESULT_INVALID_OFFSET;
-    data = null;
-  } else {
-    data = data.slice(offset);
-  }
-
-  callback(result, data);
-};
-
-let WriteOnlyCharacteristic = function() {
-  WriteOnlyCharacteristic.super_.call(this, {
-    uuid: 'FD2B4448AA0F4A15A62FEB0BE77A0004',
-    properties: ['write', 'writeWithoutResponse']
-  });
-};
-
-util.inherits(WriteOnlyCharacteristic, BlenoCharacteristic);
-
-WriteOnlyCharacteristic.prototype.onWriteRequest = function(data, offset, withoutResponse, callback) {
-  console.log('WriteOnlyCharacteristic write request: ' + data.toString('hex') + ' ' + offset + ' ' + withoutResponse);
-  callback(this.RESULT_SUCCESS);
-};
-
-let NotifyOnlyCharacteristic = function() {
-  NotifyOnlyCharacteristic.super_.call(this, {
-    uuid: 'FD2B4448AA0F4A15A62FEB0BE77A0005',
-    properties: ['notify']
-  });
-};
-
-util.inherits(NotifyOnlyCharacteristic, BlenoCharacteristic);
-
-NotifyOnlyCharacteristic.prototype.onSubscribe = function(maxValueSize, updateValueCallback) {
-  console.log('NotifyOnlyCharacteristic subscribe');
-
-  this.counter = 0;
-  this.changeInterval = setInterval(function() {
-    let data = new Buffer(4);
-    data.writeUInt32LE(this.counter, 0);
-
-    console.log('NotifyOnlyCharacteristic update value: ' + this.counter);
-    updateValueCallback(data);
-    this.counter++;
-  }.bind(this), 5000);
-};
-
-NotifyOnlyCharacteristic.prototype.onUnsubscribe = function() {
-  console.log('NotifyOnlyCharacteristic unsubscribe');
-
-  if (this.changeInterval) {
-    clearInterval(this.changeInterval);
-    this.changeInterval = null;
-  }
-};
-
-NotifyOnlyCharacteristic.prototype.onNotify = function() {
-  console.log('NotifyOnlyCharacteristic on notify');
-};
-
-let IndicateOnlyCharacteristic = function() {
-  IndicateOnlyCharacteristic.super_.call(this, {
-    uuid: 'FD2B4448AA0F4A15A62FEB0BE77A0006',
-    properties: ['indicate']
-  });
-};
-
-util.inherits(IndicateOnlyCharacteristic, BlenoCharacteristic);
-
-IndicateOnlyCharacteristic.prototype.onSubscribe = function(maxValueSize, updateValueCallback) {
-  console.log('IndicateOnlyCharacteristic subscribe');
-
-  this.counter = 0;
-  this.changeInterval = setInterval(function() {
-    let data = new Buffer(4);
-    data.writeUInt32LE(this.counter, 0);
-
-    console.log('IndicateOnlyCharacteristic update value: ' + this.counter);
-    updateValueCallback(data);
-    this.counter++;
-  }.bind(this), 1000);
-};
-
-IndicateOnlyCharacteristic.prototype.onUnsubscribe = function() {
-  console.log('IndicateOnlyCharacteristic unsubscribe');
-
-  if (this.changeInterval) {
-    clearInterval(this.changeInterval);
-    this.changeInterval = null;
-  }
-};
-
-IndicateOnlyCharacteristic.prototype.onIndicate = function() {
-  console.log('IndicateOnlyCharacteristic on indicate');
-};
-
-function SampleService() {
-  SampleService.super_.call(this, {
-    uuid: 'FD2B4448AA0F4A15A62FEB0BE77A0000',
+function wifiConfService() {
+  wifiConfService.super_.call(this, {
+    uuid: UUID.SERVICE_ID,
     characteristics: [
-      new StaticReadOnlyCharacteristic(),
-      new DynamicReadOnlyCharacteristic(),
-      new WriteOnlyCharacteristic(),
-      new NotifyOnlyCharacteristic(),
-      new IndicateOnlyCharacteristic()
+      new ServiceNameCharacteristic(),
+      new DeviceModelCharacteristic(),
+      new WifiNameCharacteristic(),
+      new IpAddressCharacteristic(),
+      new InputCharacteristic(),
+      new NotifyMassageCharacteristic(),
     ]
-  });
+  })
 }
 
-util.inherits(SampleService, BlenoPrimaryService);
+util.inherits(wifiConfService, BlenoPrimaryService)
 
 bleno.on('stateChange', function(state) {
-  console.log('on -> stateChange: ' + state + ', address = ' + bleno.address);
+  console.log('on -> stateChange: ' + state + ', address = ' + bleno.address)
 
   if (state === 'poweredOn') {
-    bleno.startAdvertising('raspberrypi', ['FD2B4448AA0F4A15A62FEB0BE77A0000']);
+    bleno.startAdvertising('raspberrypi', [ UUID.SERVICE_ID ])
   } else {
-    bleno.stopAdvertising();
+    bleno.stopAdvertising()
   }
-});
+})
 
 // Linux only events /////////////////
 bleno.on('accept', function(clientAddress) {
-  console.log('on -> accept, client: ' + clientAddress);
-  bleno.updateRssi();
-});
+  console.log('on -> accept, client: ' + clientAddress)
+  bleno.updateRssi()
+})
 
 bleno.on('disconnect', function(clientAddress) {
-  console.log('on -> disconnect, client: ' + clientAddress);
-});
+  console.log('on -> disconnect, client: ' + clientAddress)
+})
 
 bleno.on('rssiUpdate', function(rssi) {
-  console.log('on -> rssiUpdate: ' + rssi);
-});
+  console.log('on -> rssiUpdate: ' + rssi)
+})
 //////////////////////////////////////
 
 bleno.on('mtuChange', function(mtu) {
-  console.log('on -> mtuChange: ' + mtu);
-});
+  console.log('on -> mtuChange: ' + mtu)
+})
 
 bleno.on('advertisingStart', function(error) {
-  console.log('on -> advertisingStart: ' + (error ? 'error ' + error : 'success'));
+  console.log('on -> advertisingStart: ' + (error ? 'error ' + error : 'success'))
 
   if (!error) {
     bleno.setServices([
-      new SampleService()
-    ]);
+      new wifiConfService()
+    ])
   }
-});
+})
 
 bleno.on('advertisingStop', function() {
-  console.log('on -> advertisingStop');
-});
+  console.log('on -> advertisingStop')
+})
 
 bleno.on('servicesSet', function(error) {
-  console.log('on -> servicesSet: ' + (error ? 'error ' + error : 'success'));
-});
+  console.log('on -> servicesSet: ' + (error ? 'error ' + error : 'success'))
+})
