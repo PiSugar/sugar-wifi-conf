@@ -1,6 +1,6 @@
 let util = require('util')
 let bleno = require('bleno')
-let UUID = require('./sugar-uuid')
+let UUID = require('../sugar-uuid')
 
 let BlenoCharacteristic = bleno.Characteristic
 let BlenoDescriptor = bleno.Descriptor
