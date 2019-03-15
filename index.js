@@ -9,15 +9,26 @@ let BlenoDescriptor = bleno.Descriptor;
 
 console.log('bleno');
 
+// FD2B4448AA0F4A15A62FEB0BE77A0900 Raspberry Pi 3 Model A+
+// FD2B4448AA0F4A15A62FEB0BE77A0800 Raspberry Pi 3 B+
+// FD2B4448AA0F4A15A62FEB0BE77A0700 Raspberry Pi Zero WH
+// FD2B4448AA0F4A15A62FEB0BE77A0600 Raspberry Pi Zero W
+// FD2B4448AA0F4A15A62FEB0BE77A0500 Raspberry Pi 3
+// FD2B4448AA0F4A15A62FEB0BE77A0400 Raspberry Pi Zero
+// FD2B4448AA0F4A15A62FEB0BE77A0300 Raspberry Pi 2
+// FD2B4448AA0F4A15A62FEB0BE77A0200 Raspberry Pi A+
+// FD2B4448AA0F4A15A62FEB0BE77A0100 Raspberry Pi B
+// FD2B4448AA0F4A15A62FEB0BE77A0000 (Unknown Model)
+
 let StaticReadOnlyCharacteristic = function() {
   StaticReadOnlyCharacteristic.super_.call(this, {
-    uuid: 'fffffffffffffffffffffffffffffff1',
+    uuid: 'FD2B4448AA0F4A15A62FEB0BE77A0001',
     properties: ['read'],
     value: new Buffer('value'),
     descriptors: [
       new BlenoDescriptor({
-        uuid: '2901',
-        value: 'user description'
+        uuid: '1200',
+        value: 'PiSugar BLE Wifi Config Service'
       })
     ]
   });
@@ -26,7 +37,7 @@ util.inherits(StaticReadOnlyCharacteristic, BlenoCharacteristic);
 
 let DynamicReadOnlyCharacteristic = function() {
   DynamicReadOnlyCharacteristic.super_.call(this, {
-    uuid: 'fffffffffffffffffffffffffffffff2',
+    uuid: 'FD2B4448AA0F4A15A62FEB0BE77A0002',
     properties: ['read']
   });
 };
@@ -47,36 +58,9 @@ DynamicReadOnlyCharacteristic.prototype.onReadRequest = function(offset, callbac
   callback(result, data);
 };
 
-let LongDynamicReadOnlyCharacteristic = function() {
-  LongDynamicReadOnlyCharacteristic.super_.call(this, {
-    uuid: 'fffffffffffffffffffffffffffffff3',
-    properties: ['read']
-  });
-};
-
-util.inherits(LongDynamicReadOnlyCharacteristic, BlenoCharacteristic);
-
-LongDynamicReadOnlyCharacteristic.prototype.onReadRequest = function(offset, callback) {
-  let result = this.RESULT_SUCCESS;
-  let data = new Buffer(512);
-
-  for (let i = 0; i < data.length; i++) {
-    data[i] = i % 256;
-  }
-
-  if (offset > data.length) {
-    result = this.RESULT_INVALID_OFFSET;
-    data = null;
-  } else {
-    data = data.slice(offset);
-  }
-
-  callback(result, data);
-};
-
 let WriteOnlyCharacteristic = function() {
   WriteOnlyCharacteristic.super_.call(this, {
-    uuid: 'fffffffffffffffffffffffffffffff4',
+    uuid: 'FD2B4448AA0F4A15A62FEB0BE77A0004',
     properties: ['write', 'writeWithoutResponse']
   });
 };
@@ -85,13 +69,12 @@ util.inherits(WriteOnlyCharacteristic, BlenoCharacteristic);
 
 WriteOnlyCharacteristic.prototype.onWriteRequest = function(data, offset, withoutResponse, callback) {
   console.log('WriteOnlyCharacteristic write request: ' + data.toString('hex') + ' ' + offset + ' ' + withoutResponse);
-
   callback(this.RESULT_SUCCESS);
 };
 
 let NotifyOnlyCharacteristic = function() {
   NotifyOnlyCharacteristic.super_.call(this, {
-    uuid: 'fffffffffffffffffffffffffffffff5',
+    uuid: 'FD2B4448AA0F4A15A62FEB0BE77A0005',
     properties: ['notify']
   });
 };
@@ -127,7 +110,7 @@ NotifyOnlyCharacteristic.prototype.onNotify = function() {
 
 let IndicateOnlyCharacteristic = function() {
   IndicateOnlyCharacteristic.super_.call(this, {
-    uuid: 'fffffffffffffffffffffffffffffff6',
+    uuid: 'FD2B4448AA0F4A15A62FEB0BE77A0006',
     properties: ['indicate']
   });
 };
@@ -181,7 +164,7 @@ bleno.on('stateChange', function(state) {
   console.log('on -> stateChange: ' + state + ', address = ' + bleno.address);
 
   if (state === 'poweredOn') {
-    bleno.startAdvertising('raspberrypi', ['FD2B4448-AA0F-4A15-A62F-EB0BE77A0000']);
+    bleno.startAdvertising('raspberrypi', ['FD2B4448AA0F4A15A62FEB0BE77A0000']);
   } else {
     bleno.stopAdvertising();
   }
@@ -190,7 +173,6 @@ bleno.on('stateChange', function(state) {
 // Linux only events /////////////////
 bleno.on('accept', function(clientAddress) {
   console.log('on -> accept, client: ' + clientAddress);
-
   bleno.updateRssi();
 });
 
