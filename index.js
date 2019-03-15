@@ -150,7 +150,6 @@ function SampleService() {
     characteristics: [
       new StaticReadOnlyCharacteristic(),
       new DynamicReadOnlyCharacteristic(),
-      new LongDynamicReadOnlyCharacteristic(),
       new WriteOnlyCharacteristic(),
       new NotifyOnlyCharacteristic(),
       new IndicateOnlyCharacteristic()
