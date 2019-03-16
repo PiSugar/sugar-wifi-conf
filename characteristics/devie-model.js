@@ -1,3 +1,4 @@
+const execSync = require('child_process').execSync;
 let util = require('util')
 let bleno = require('bleno')
 let UUID = require('../sugar-uuid')
@@ -5,6 +6,8 @@ let UUID = require('../sugar-uuid')
 let BlenoCharacteristic = bleno.Characteristic
 let BlenoDescriptor = bleno.Descriptor
 
+let model = execSync('cat /proc/device-tree/model')
+console.log(model)
 
 let DeviceModelCharacteristic = function() {
   DeviceModelCharacteristic.super_.call(this, {
