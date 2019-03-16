@@ -7,7 +7,7 @@ let BlenoCharacteristic = bleno.Characteristic
 let BlenoDescriptor = bleno.Descriptor
 
 let model = execSync('cat /proc/device-tree/model')
-console.log(model)
+console.log(model.toString())
 
 let DeviceModelCharacteristic = function() {
   DeviceModelCharacteristic.super_.call(this, {
