@@ -5,6 +5,7 @@ let UUID = require('../sugar-uuid')
 
 let BlenoCharacteristic = bleno.Characteristic
 
+getWifiName()
 
 let WifiNameCharacteristic = function() {
   WifiNameCharacteristic.super_.call(this, {
