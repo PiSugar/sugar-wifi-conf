@@ -29,7 +29,7 @@ WifiNameCharacteristic.prototype.onReadRequest = function(offset, callback) {
 
 WifiNameCharacteristic.prototype.onSubscribe = function(maxValueSize, updateValueCallback) {
   console.log('WifiNameCharacteristic subscribe')
-
+  updateValueCallback(new Buffer(getWifiName()))
   this.changeInterval = setInterval(function() {
     let wifi = getWifiName()
     let data = new Buffer(wifi)
