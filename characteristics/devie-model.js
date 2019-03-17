@@ -1,4 +1,4 @@
-const execSync = require('child_process').execSync;
+const execSync = require('child_process').execSync
 let util = require('util')
 let bleno = require('bleno')
 let UUID = require('../sugar-uuid')
