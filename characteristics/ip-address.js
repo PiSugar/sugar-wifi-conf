@@ -8,24 +8,11 @@ let BlenoCharacteristic = bleno.Characteristic
 let IpAddressCharacteristic = function() {
   IpAddressCharacteristic.super_.call(this, {
     uuid: UUID.IP_ADDRESS,
-    properties: ['read', 'notify']
+    properties: ['notify']
   })
 }
 
 util.inherits(IpAddressCharacteristic, BlenoCharacteristic)
-
-IpAddressCharacteristic.prototype.onReadRequest = function(offset, callback) {
-  let result = this.RESULT_SUCCESS
-  let data = new Buffer(getIPAddress())
-
-  if (offset > data.length) {
-    result = this.RESULT_INVALID_OFFSET
-    data = null
-  } else {
-    data = data.slice(offset)
-  }
-  callback(result, data)
-}
 
 IpAddressCharacteristic.prototype.onSubscribe = function(maxValueSize, updateValueCallback) {
   console.log('IpAddressCharacteristic subscribe')

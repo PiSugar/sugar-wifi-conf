@@ -4,7 +4,9 @@ let UUID = require('../sugar-uuid')
 
 let BlenoCharacteristic = bleno.Characteristic
 
-
+let config = {
+  key: 'pisugar'
+}
 // Input
 
 let InputCharacteristic = function() {
@@ -17,7 +19,7 @@ let InputCharacteristic = function() {
 util.inherits(InputCharacteristic, BlenoCharacteristic)
 
 InputCharacteristic.prototype.onWriteRequest = function(data, offset, withoutResponse, callback) {
-  console.log('InputCharacteristic write request: ' + data.toString('hex') + ' ' + offset + ' ' + withoutResponse)
+  console.log('InputCharacteristic write request: ' + data.toString() + ' ' + offset + ' ' + withoutResponse)
   callback(this.RESULT_SUCCESS)
 }
 

@@ -8,24 +8,11 @@ let BlenoCharacteristic = bleno.Characteristic
 let WifiNameCharacteristic = function() {
   WifiNameCharacteristic.super_.call(this, {
     uuid: UUID.WIFI_NAME,
-    properties: ['read', 'notify']
+    properties: ['notify']
   })
 }
 
 util.inherits(WifiNameCharacteristic, BlenoCharacteristic)
-
-WifiNameCharacteristic.prototype.onReadRequest = function(offset, callback) {
-  let result = this.RESULT_SUCCESS
-  let data = new Buffer(getWifiName())
-
-  if (offset > data.length) {
-    result = this.RESULT_INVALID_OFFSET
-    data = null
-  } else {
-    data = data.slice(offset)
-  }
-  callback(result, data)
-}
 
 WifiNameCharacteristic.prototype.onSubscribe = function(maxValueSize, updateValueCallback) {
   console.log('WifiNameCharacteristic subscribe')
