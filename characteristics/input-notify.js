@@ -1,3 +1,4 @@
+const execSync = require('child_process').execSync
 let util = require('util')
 let bleno = require('bleno')
 let UUID = require('../sugar-uuid')
@@ -20,6 +21,18 @@ util.inherits(InputCharacteristic, BlenoCharacteristic)
 
 InputCharacteristic.prototype.onWriteRequest = function(data, offset, withoutResponse, callback) {
   console.log('InputCharacteristic write request: ' + data.toString() + ' ' + offset + ' ' + withoutResponse)
+  let inputArray = data.toString().split('%&%')
+  if (inputArray.length !== 3) {
+    console.log('Wrong input syntax')
+    return
+  }
+  if (inputArray[0] !== config.key){
+    console.log('Wrong input key')
+    return
+  }
+  let ssid = inputArray[1]
+  let password = inputArray[2]
+  let result = setWifi(ssid, password)
   callback(this.RESULT_SUCCESS)
 }
 
@@ -59,6 +72,10 @@ NotifyMassageCharacteristic.prototype.onUnsubscribe = function() {
 
 NotifyMassageCharacteristic.prototype.onNotify = function() {
   console.log('NotifyMassageCharacteristic on notify')
+}
+
+function setWifi(ssid, password) {
+  return execSync(`nmcli device wifi con "${ssid}" password "${password}"`)
 }
 
 module.exports = {
