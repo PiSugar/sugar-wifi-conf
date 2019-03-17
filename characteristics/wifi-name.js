@@ -16,7 +16,7 @@ util.inherits(WifiNameCharacteristic, BlenoCharacteristic)
 
 WifiNameCharacteristic.prototype.onReadRequest = function(offset, callback) {
   let result = this.RESULT_SUCCESS
-  let data = new Buffer(getWifiName)
+  let data = new Buffer(getWifiName())
 
   if (offset > data.length) {
     result = this.RESULT_INVALID_OFFSET
