@@ -7,7 +7,7 @@ let BlenoCharacteristic = bleno.Characteristic
 
 let IpAddressCharacteristic = function() {
   IpAddressCharacteristic.super_.call(this, {
-    uuid: UUID.WIFI_NAME,
+    uuid: UUID.IP_ADDRESS,
     properties: ['read', 'notify']
   })
 }
@@ -29,13 +29,11 @@ IpAddressCharacteristic.prototype.onReadRequest = function(offset, callback) {
 
 IpAddressCharacteristic.prototype.onSubscribe = function(maxValueSize, updateValueCallback) {
   console.log('IpAddressCharacteristic subscribe')
-  this.ip = getIPAddress()
   this.changeInterval = setInterval(function() {
     let ip = getIPAddress()
     let data = new Buffer(ip)
-    console.log('IpAddressCharacteristic update value: ' + this.ip)
+    console.log('IpAddressCharacteristic update value: ' + ip)
     updateValueCallback(data)
-    this.counter++
   }.bind(this), 5000)
 }
 

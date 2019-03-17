@@ -5,8 +5,6 @@ let UUID = require('../sugar-uuid')
 
 let BlenoCharacteristic = bleno.Characteristic
 
-getWifiName()
-
 let WifiNameCharacteristic = function() {
   WifiNameCharacteristic.super_.call(this, {
     uuid: UUID.WIFI_NAME,
@@ -18,7 +16,7 @@ util.inherits(WifiNameCharacteristic, BlenoCharacteristic)
 
 WifiNameCharacteristic.prototype.onReadRequest = function(offset, callback) {
   let result = this.RESULT_SUCCESS
-  let data = new Buffer('dynamic value')
+  let data = new Buffer(getWifiName)
 
   if (offset > data.length) {
     result = this.RESULT_INVALID_OFFSET
@@ -32,14 +30,11 @@ WifiNameCharacteristic.prototype.onReadRequest = function(offset, callback) {
 WifiNameCharacteristic.prototype.onSubscribe = function(maxValueSize, updateValueCallback) {
   console.log('WifiNameCharacteristic subscribe')
 
-  this.counter = 0
   this.changeInterval = setInterval(function() {
-    let data = new Buffer(4)
-    data.writeUInt32LE(this.counter, 0)
-
-    console.log('WifiNameCharacteristic update value: ' + this.counter)
+    let wifi = getWifiName()
+    let data = new Buffer(wifi)
+    console.log('WifiNameCharacteristic update value: ' + wifi)
     updateValueCallback(data)
-    this.counter++
   }.bind(this), 5000)
 }
 
@@ -61,7 +56,7 @@ function getWifiName() {
   let wifiBuffer = execSync('nmcli dev show wlan0')
   let wifiString = wifiBuffer.toString()
   let match = wifiString.match(reg)
-  console.log(match)
+  return match.length > 1 ? match[1] : ''
 }
 
 module.exports = WifiNameCharacteristic
