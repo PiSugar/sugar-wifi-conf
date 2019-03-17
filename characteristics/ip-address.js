@@ -16,13 +16,16 @@ util.inherits(IpAddressCharacteristic, BlenoCharacteristic)
 
 IpAddressCharacteristic.prototype.onSubscribe = function(maxValueSize, updateValueCallback) {
   console.log('IpAddressCharacteristic subscribe')
-  updateValueCallback(new Buffer(getIPAddress()))
+  this.ip = getIPAddress()
+  updateValueCallback(new Buffer(this.ip))
   this.changeInterval = setInterval(function() {
-    let ip = getIPAddress()
-    let data = new Buffer(ip)
-    console.log('IpAddressCharacteristic update value: ' + ip)
+    let newIp = getIPAddress()
+    if (newIp === this.ip) return
+    this.ip = newIp
+    let data = new Buffer(this.ip)
+    console.log('IpAddressCharacteristic update value: ' + this.ip)
     updateValueCallback(data)
-  }.bind(this), 5000)
+  }.bind(this), 1000)
 }
 
 IpAddressCharacteristic.prototype.onUnsubscribe = function() {
