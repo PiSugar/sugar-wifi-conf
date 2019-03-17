@@ -75,7 +75,14 @@ NotifyMassageCharacteristic.prototype.onNotify = function() {
 }
 
 function setWifi(ssid, password) {
-  return execSync(`nmcli device wifi con "${ssid}" password "${password}"`)
+  let error = 'ok'
+  try {
+    execSync(`nmcli device wifi con "${ssid}" password "${password}"`)
+  } catch (e) {
+    error = e.toString()
+    console.log(error)
+  }
+  return error
 }
 
 module.exports = {
