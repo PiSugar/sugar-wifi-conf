@@ -57,7 +57,7 @@ WifiNameCharacteristic.prototype.onNotify = function() {
 }
 
 function getWifiName() {
-  const reg = /GENERAL\.CONNECTION:[\s]*([^\n]*)/
+  const reg = /GENERAL\.CONNECTION:[\s]*([^\s]*)/
   let wifiBuffer = execSync('nmcli dev show wlan0')
   let wifiString = wifiBuffer.toString()
   let match = wifiString.match(reg)
