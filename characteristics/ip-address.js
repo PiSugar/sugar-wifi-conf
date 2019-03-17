@@ -29,6 +29,7 @@ IpAddressCharacteristic.prototype.onReadRequest = function(offset, callback) {
 
 IpAddressCharacteristic.prototype.onSubscribe = function(maxValueSize, updateValueCallback) {
   console.log('IpAddressCharacteristic subscribe')
+  updateValueCallback(new Buffer(getIPAddress()))
   this.changeInterval = setInterval(function() {
     let ip = getIPAddress()
     let data = new Buffer(ip)
