@@ -16,11 +16,14 @@ util.inherits(WifiNameCharacteristic, BlenoCharacteristic)
 
 WifiNameCharacteristic.prototype.onSubscribe = function(maxValueSize, updateValueCallback) {
   console.log('WifiNameCharacteristic subscribe')
-  updateValueCallback(new Buffer(getWifiName()))
+  this.wifiName = getWifiName()
+  updateValueCallback(new Buffer(this.wifiName))
   this.changeInterval = setInterval(function() {
-    let wifi = getWifiName()
-    let data = new Buffer(wifi)
-    console.log('WifiNameCharacteristic update value: ' + wifi)
+    let newWifiName = getWifiName()
+    if (newWifiName === this.wifiName) return
+    this.wifiName = newWifiName
+    let data = new Buffer(this.wifiName)
+    console.log('WifiNameCharacteristic update value: ' + this.wifiName)
     updateValueCallback(data)
   }.bind(this), 5000)
 }

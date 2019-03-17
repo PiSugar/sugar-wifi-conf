@@ -8,6 +8,10 @@ let BlenoCharacteristic = bleno.Characteristic
 let config = {
   key: 'pisugar'
 }
+
+let message = ''
+let messageTimestamp = 0
+
 // Input
 
 let InputCharacteristic = function() {
@@ -23,11 +27,13 @@ InputCharacteristic.prototype.onWriteRequest = function(data, offset, withoutRes
   console.log('InputCharacteristic write request: ' + data.toString() + ' ' + offset + ' ' + withoutResponse)
   let inputArray = data.toString().split('%&%')
   if (inputArray.length !== 3) {
-    console.log('Wrong input syntax')
+    console.log('Wrong input syntax.')
+    setMessage('Wrong input syntax.')
     return
   }
   if (inputArray[0] !== config.key){
-    console.log('Wrong input key')
+    console.log('Wrong input key.')
+    setMessage('Wrong input key.')
     return
   }
   let ssid = inputArray[1]
@@ -49,16 +55,14 @@ util.inherits(NotifyMassageCharacteristic, BlenoCharacteristic)
 
 NotifyMassageCharacteristic.prototype.onSubscribe = function(maxValueSize, updateValueCallback) {
   console.log('NotifyMassageCharacteristic subscribe')
-
-  this.counter = 0
+  this.timeStamp = messageTimestamp
   this.changeInterval = setInterval(function() {
-    let data = new Buffer(4)
-    data.writeUInt32LE(this.counter, 0)
-
-    console.log('NotifyMassageCharacteristic update value: ' + this.counter)
+    if (this.timeStamp === messageTimestamp) return
+    let data = new Buffer(message)
+    console.log('NotifyMassageCharacteristic update value: ' + message)
     updateValueCallback(data)
-    this.counter++
-  }.bind(this), 5000)
+    this.timeStamp = messageTimestamp
+  }.bind(this), 100)
 }
 
 NotifyMassageCharacteristic.prototype.onUnsubscribe = function() {
@@ -75,14 +79,20 @@ NotifyMassageCharacteristic.prototype.onNotify = function() {
 }
 
 function setWifi(ssid, password) {
-  let error = 'ok'
+  let result = 'ok'
   try {
     execSync(`nmcli device wifi con "${ssid}" password "${password}"`)
   } catch (e) {
-    error = e.toString()
-    console.log(error)
+    result = e.toString()
+    console.log(result)
   }
-  return error
+  setMessage(result)
+  return result
+}
+
+function setMessage (msg) {
+  message = msg
+  messageTimestamp = new Date().getTime()
 }
 
 module.exports = {
