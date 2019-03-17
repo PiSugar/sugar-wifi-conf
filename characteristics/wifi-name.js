@@ -1,8 +1,10 @@
+const execSync = require('child_process').execSync
 let util = require('util')
 let bleno = require('bleno')
 let UUID = require('../sugar-uuid')
 
 let BlenoCharacteristic = bleno.Characteristic
+
 
 let WifiNameCharacteristic = function() {
   WifiNameCharacteristic.super_.call(this, {
@@ -51,6 +53,14 @@ WifiNameCharacteristic.prototype.onUnsubscribe = function() {
 
 WifiNameCharacteristic.prototype.onNotify = function() {
   console.log('WifiNameCharacteristic on notify')
+}
+
+function getWifiName() {
+  const reg = /GENERAL\.CONNECTION:[\s]*([^\n]*)/
+  let wifiBuffer = execSync('nmcli dev show wlan0')
+  let wifiString = wifiBuffer.toString()
+  let match = wifiString.match(reg)
+  console.log(match)
 }
 
 module.exports = WifiNameCharacteristic
