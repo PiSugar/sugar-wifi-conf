@@ -22,7 +22,7 @@ IpAddressCharacteristic.prototype.onSubscribe = function(maxValueSize, updateVal
     let newIp = getIPAddress()
     if (newIp === this.ip) return
     this.ip = newIp
-    let data = new Buffer(this.ip)
+    let data = new Buffer(this.ip.toString())
     console.log('IpAddressCharacteristic update value: ' + this.ip)
     updateValueCallback(data)
   }.bind(this), 1000)
@@ -43,14 +43,16 @@ IpAddressCharacteristic.prototype.onNotify = function() {
 function getIPAddress() {
   let interfaces = os.networkInterfaces();
   for (let index in interfaces) {
-    let iface = interfaces[index];
+    let iface = interfaces[index]
+    let addresses = []
     for (let i = 0; i < iface.length; i++) {
-      let alias = iface[i];
+      let alias = iface[i]
       // console.log(alias)
       if (alias.family === 'IPv4' && alias.address !== '127.0.0.1' && !alias.internal) {
-        return alias.address;
+        addresses.push(alias.address)
       }
     }
+    return addresses.join(', ')
   }
 }
 
