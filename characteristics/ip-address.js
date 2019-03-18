@@ -41,10 +41,10 @@ IpAddressCharacteristic.prototype.onNotify = function() {
 }
 
 function getIPAddress() {
-  let interfaces = os.networkInterfaces();
+  let interfaces = os.networkInterfaces()
+  let addresses = []
   for (let index in interfaces) {
     let iface = interfaces[index]
-    let addresses = []
     for (let i = 0; i < iface.length; i++) {
       let alias = iface[i]
       // console.log(alias)
@@ -52,8 +52,8 @@ function getIPAddress() {
         addresses.push(alias.address)
       }
     }
-    return addresses.join(', ')
   }
+  return addresses.join(', ')
 }
 
 module.exports = IpAddressCharacteristic
