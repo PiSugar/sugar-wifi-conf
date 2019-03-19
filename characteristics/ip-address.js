@@ -41,17 +41,19 @@ IpAddressCharacteristic.prototype.onNotify = function() {
 }
 
 function getIPAddress() {
-  let interfaces = os.networkInterfaces();
+  let interfaces = os.networkInterfaces()
+  let addresses = []
   for (let index in interfaces) {
-    let iface = interfaces[index];
+    let iface = interfaces[index]
     for (let i = 0; i < iface.length; i++) {
-      let alias = iface[i];
+      let alias = iface[i]
       // console.log(alias)
       if (alias.family === 'IPv4' && alias.address !== '127.0.0.1' && !alias.internal) {
-        return alias.address;
+        addresses.push(alias.address)
       }
     }
   }
+  return addresses.join(', ')
 }
 
 function isString(str){
