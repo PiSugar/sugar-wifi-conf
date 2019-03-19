@@ -54,6 +54,7 @@ node -v
 在sugar-wifi-conf目录下安装依赖，设置项目开机启动
 
 ```
+# 在root运行
 # 安装依赖
 npm i
 
@@ -66,8 +67,20 @@ pm2 save
 
 重启后即完成安装，手机开启蓝牙，使用微信小程序即可发现树莓派，进行wifi设置。
 
+项目根目录config.js文件包含两个参数，一个是蓝牙广播的设备名称，一个是设置wifi时的key（默认为pisugar,安全起见建议修改）
 
-注意：NetworkManager接管wifi后，原有的wifi配置会失效。如需自行连接wifi，可使用命令：
+
+```
+module.exports = {
+  name: 'raspberrypi',
+  key: 'pisugar'
+}
+
+// 修改后通过pm2 restart all 重启node即可
+```
+
+
+注意：NetworkManager接管wifi后，原有的wifi配置会失效。如需自行连接wifi，可使用nmcli命令：
 
 ```
 nmcli device wifi con "wifi名称" password "wifi密码" 
