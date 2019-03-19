@@ -1,6 +1,7 @@
 let util = require('util')
 let bleno = require('bleno')
 let UUID = require('./sugar-uuid')
+let config = require('./config')
 
 let ServiceNameCharacteristic = require('./characteristics/service-name')
 let DeviceModelCharacteristic = require('./characteristics/devie-model')
@@ -36,7 +37,7 @@ bleno.on('stateChange', function(state) {
   console.log('on -> stateChange: ' + state + ', address = ' + bleno.address)
 
   if (state === 'poweredOn') {
-    bleno.startAdvertising('raspberrypi', [ UUID.SERVICE_ID ])
+    bleno.startAdvertising(config.name, [ UUID.SERVICE_ID ])
   } else {
     bleno.stopAdvertising()
   }
