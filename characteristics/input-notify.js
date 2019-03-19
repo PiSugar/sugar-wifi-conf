@@ -2,12 +2,10 @@ const execSync = require('child_process').execSync
 let util = require('util')
 let bleno = require('bleno')
 let UUID = require('../sugar-uuid')
+let config = require('../config')
 
 let BlenoCharacteristic = bleno.Characteristic
 
-let config = {
-  key: 'pisugar'
-}
 
 let message = ''
 let messageTimestamp = 0
