@@ -22,7 +22,7 @@ IpAddressCharacteristic.prototype.onSubscribe = function(maxValueSize, updateVal
     let newIp = getIPAddress()
     if (newIp === this.ip) return
     this.ip = newIp
-    let data = new Buffer(this.ip)
+    let data = new Buffer(isString(this.ip) ? this.ip : '--')
     console.log('IpAddressCharacteristic update value: ' + this.ip)
     updateValueCallback(data)
   }.bind(this), 1000)
@@ -52,6 +52,10 @@ function getIPAddress() {
       }
     }
   }
+}
+
+function isString(str){
+  return Object.prototype.toString.call(str) === "[object String]"
 }
 
 module.exports = IpAddressCharacteristic
