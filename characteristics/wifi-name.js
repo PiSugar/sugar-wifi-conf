@@ -42,16 +42,17 @@ WifiNameCharacteristic.prototype.onNotify = function() {
 }
 
 function getWifiName() {
-  const reg = /GENERAL\.CONNECTION:[\s]*([^\n]*)/
-  const regCN =  /GENERAL\.连接:[\s]*([^\n]*)/
-  let wifiBuffer = execSync('nmcli dev show wlan0')
-  let wifiString = wifiBuffer.toString()
-  let match = wifiString.match(reg)
-  if (!match) {
-    match = wifiString.match(regCN)
+  const reg = /ESSID:"([^"]*)"/
+  let match
+  try{
+    let wifiBuffer = execSync('iwconfig wlan0')
+    let wifiString = wifiBuffer.toString()
+    match = wifiString.match(reg)
+  } catch (e) {
+    console.log(e.toString())
   }
   if (!match) return 'Not available'
-  return match.length > 1 ? match[1] : ''
+  return match.length > 1 ? match[1] : 'Not available'
 }
 
 module.exports = WifiNameCharacteristic
