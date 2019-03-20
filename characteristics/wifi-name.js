@@ -46,6 +46,7 @@ function getWifiName() {
   let wifiBuffer = execSync('nmcli dev show wlan0')
   let wifiString = wifiBuffer.toString()
   let match = wifiString.match(reg)
+  if (!match.length) return 'not available'
   return match.length > 1 ? match[1] : ''
 }
 
