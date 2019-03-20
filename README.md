@@ -7,23 +7,6 @@
 
 ### 安装步骤
 
-安装 NetworkManager
-
-```
-sudo apt-get update
-sudo apt-get install network-manager
-
-# 在NetworkManager.conf中，将managed=false改为managed=true
-sudo nano /etc/NetworkManager/NetworkManager.conf
-
-# 在dhcpcd.conf文件末尾加上一行：denyinterfaces wlan0
-sudo nano /etc/dhcpcd.conf
-
-# 确保wlan0没有被interface文件引用，被引用的话可能会造成 NetworkManager 无法接管wifi
-sudo nano /etc/network/interfaces
-
-```
-
 下载项目文件，示例是下载在pi用户目录下
 
 ```
@@ -64,6 +47,24 @@ pm2 start index.js
 pm2 startup
 pm2 save
 ```
+
+安装 NetworkManager
+
+```
+sudo apt-get update
+sudo apt-get install network-manager
+
+# 在NetworkManager.conf中，将managed=false改为managed=true
+sudo nano /etc/NetworkManager/NetworkManager.conf
+
+# 在dhcpcd.conf文件末尾加上一行：denyinterfaces wlan0
+sudo nano /etc/dhcpcd.conf
+
+# 确保wlan0没有被interface文件引用，被引用的话可能会造成 NetworkManager 无法接管wifi
+sudo nano /etc/network/interfaces
+
+```
+
 
 重启后即完成安装，手机开启蓝牙，使用微信小程序即可发现树莓派，进行wifi设置。
 
