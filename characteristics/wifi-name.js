@@ -43,10 +43,14 @@ WifiNameCharacteristic.prototype.onNotify = function() {
 
 function getWifiName() {
   const reg = /GENERAL\.CONNECTION:[\s]*([^\n]*)/
+  const regCN =  /GENERAL\.连接:[\s]*([^\n]*)/
   let wifiBuffer = execSync('nmcli dev show wlan0')
   let wifiString = wifiBuffer.toString()
   let match = wifiString.match(reg)
-  if (!match.length) return 'not available'
+  if (!match) {
+    match = wifiString.match(regCN)
+  }
+  if (!match) return 'Not available'
   return match.length > 1 ? match[1] : ''
 }
 
