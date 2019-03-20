@@ -48,25 +48,7 @@ pm2 startup
 pm2 save
 ```
 
-安装 NetworkManager
-
-```
-sudo apt-get update
-sudo apt-get install network-manager
-
-# 在NetworkManager.conf中，将managed=false改为managed=true
-sudo nano /etc/NetworkManager/NetworkManager.conf
-
-# 在dhcpcd.conf文件末尾加上一行：denyinterfaces wlan0
-sudo nano /etc/dhcpcd.conf
-
-# 确保wlan0没有被interface文件引用，被引用的话可能会造成 NetworkManager 无法接管wifi
-sudo nano /etc/network/interfaces
-
-```
-
-
-重启后即完成安装，手机开启蓝牙，使用微信小程序即可发现树莓派，进行wifi设置。
+手机开启蓝牙，使用微信小程序即可发现树莓派，进行wifi设置。
 
 项目根目录config.js文件包含两个参数，一个是蓝牙广播的设备名称，一个是设置wifi时的key（默认为pisugar,安全起见建议修改）
 
