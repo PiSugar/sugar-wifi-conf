@@ -6,8 +6,8 @@ let config = require('../config')
 const fs = require('fs')
 const conf_path = '/etc/wpa_supplicant/wpa_supplicant.conf'
 
-
-console.log(global.process.env.key)
+let argv = process.argv.splice(2)
+if (argv.length > 0) config.key = argv[0]
 
 let BlenoCharacteristic = bleno.Characteristic
 let message = ''
@@ -30,11 +30,13 @@ InputCharacteristic.prototype.onWriteRequest = function(data, offset, withoutRes
   if (inputArray.length !== 3) {
     console.log('Wrong input syntax.')
     setMessage('Wrong input syntax.')
+    callback(this.RESULT_SUCCESS)
     return
   }
   if (inputArray[0] !== config.key){
     console.log('Wrong input key.')
     setMessage('Wrong input key.')
+    callback(this.RESULT_SUCCESS)
     return
   }
   let ssid = inputArray[1]
