@@ -30,7 +30,7 @@ sudo nano /etc/rc.local
 # 若想改变蓝牙设置的key，可在执行命令后面加一个参数，如果要将key改为123456，可以这样设置：
 sudo ./home/pi/sugar-wifi-conf/build/sugar-wifi-conf 123456
 
-不设置的话key将默认为pisugar
+#不设置的话key将默认为pisugar
 
 ```
 
