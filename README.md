@@ -8,9 +8,9 @@
 
 ### 安装步骤
 
-下载项目文件，示例是下载在pi用户目录下
 
 ```
+#下载项目文件，示例是下载在pi用户目录下
 cd ~
 git clone https://github.com/PiSugar/sugar-wifi-conf.git
 cd sugar-wifi-conf/build
