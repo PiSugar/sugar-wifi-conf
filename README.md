@@ -12,63 +12,26 @@
 ```
 cd ~
 git clone https://github.com/PiSugar/sugar-wifi-conf.git
-cd sugar-wifi-conf
+cd sugar-wifi-conf/build
+
+# 修改文件权限
+chmod 777 binding.node
+chmod 777 sugar-wifi-conf
+
+# 测试是否可以运行
+sudo ./sugar-wifi-conf
+
+# 设置开机启动
+sudo nano /etc/rc.local
+# 在exit0之前添加一行： sudo ./home/pi/sugar-wifi-conf/build/sugar-wifi-conf
+# 重启后即可使用！
+
+# 若想改变蓝牙设置的key，可在执行命令后面加一个参数，比如讲key改为123456，可以这样设置：
+sudo ./home/pi/sugar-wifi-conf/build/sugar-wifi-conf 123456
 
 ```
 
 
-切换到root下安装 nodejs （蓝牙服务需要root权限）
-
-
-```
-# 切换到root下
-sudo su
-
-# 使用nvm安装nodejs 8.0 (blueno依赖暂不支持更高版本)
-wget -qO- https://raw.githubusercontent.com/creationix/nvm/v0.31.1/install.sh | bash
-source ~/.bashrc
-nvm install 8
-
-# 查看是否安装成功，版本为8
-node -v
-
-```
-
-在sugar-wifi-conf目录下安装依赖，设置项目开机启动
-
-```
-# 在root运行
-# 安装依赖
-npm i
-
-# 安装pm2设置开机启动
-npm i pm2 -g
-pm2 start index.js
-pm2 startup
-pm2 save
-```
-
-手机开启蓝牙，使用微信小程序即可发现树莓派，进行wifi设置。
-
-项目根目录config.js文件包含两个参数，一个是蓝牙广播的设备名称，一个是设置wifi时的key（默认为pisugar,安全起见建议修改）
-
-
-```
-module.exports = {
-  name: 'raspberrypi',
-  key: 'pisugar'
-}
-
-// 修改后通过pm2 restart all 重启node即可
-```
-
-
-注意：NetworkManager接管wifi后，原有的wifi配置会失效。如需自行连接wifi，可使用nmcli命令：
-
-```
-nmcli device wifi con "wifi名称" password "wifi密码" 
-
-``` 
 
 
 
