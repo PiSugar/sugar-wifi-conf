@@ -18,12 +18,12 @@ cd sugar-wifi-conf/build
 chmod 777 binding.node
 chmod 777 sugar-wifi-conf
 
-# 测试是否可以运行
+# 测试是否可以运行，运行后使用微信小程序扫描
 sudo ./sugar-wifi-conf
 
 # 设置开机启动
 sudo nano /etc/rc.local
-# 在exit0之前添加一行： sudo ./home/pi/sugar-wifi-conf/build/sugar-wifi-conf
+# 在exit 0之前添加一行： sudo ./home/pi/sugar-wifi-conf/build/sugar-wifi-conf
 # 重启后即可使用！
 
 # 若想改变蓝牙设置的key，可在执行命令后面加一个参数，比如讲key改为123456，可以这样设置：
