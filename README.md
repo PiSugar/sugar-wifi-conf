@@ -18,7 +18,8 @@ cd sugar-wifi-conf/build
 chmod 777 binding.node
 chmod 777 sugar-wifi-conf
 
-# 测试是否可以运行，运行后使用微信小程序扫描
+# 测试是否可以运行，运行后使用微信小程序扫描。
+# 注意此时更改wifi可能会造成网络断开，程序结束。所以建议在设置开机启动后再测试修改wifi
 sudo ./sugar-wifi-conf
 
 # 设置开机启动
