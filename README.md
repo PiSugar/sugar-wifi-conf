@@ -7,6 +7,7 @@
 
 ### 简易安装步骤
 ```
+git clone https://github.com/PiSugar/sugar-wifi-conf.git
 sudo -s . ./sugar-wifi-conf/wificonfig.sh
 ```
 ### 安装步骤
