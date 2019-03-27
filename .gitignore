@@ -6,3 +6,4 @@ node_modules/*
 *.xml
 .idea/codeStyles/Project.xml
 config.example.js
+.idea/codeStyles/Project.xml

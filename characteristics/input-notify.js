@@ -27,7 +27,7 @@ util.inherits(InputCharacteristic, BlenoCharacteristic)
 InputCharacteristic.prototype.onWriteRequest = function(data, offset, withoutResponse, callback) {
   console.log('InputCharacteristic write request: ' + data.toString() + ' ' + offset + ' ' + withoutResponse)
   let inputArray = data.toString().split('%&%')
-  if (inputArray.length !== 3) {
+  if (inputArray && inputArray.length < 3) {
     console.log('Wrong input syntax.')
     setMessage('Wrong input syntax.')
     callback(this.RESULT_SUCCESS)
@@ -112,14 +112,22 @@ async function setWifi (input_ssid, input_password) {
   } catch (e) {
     console.log(e.toString())
   }
-  await sleep(2)
-  try{
-    let msg = execSync('wpa_supplicant -B -iwlan0 -c/etc/wpa_supplicant/wpa_supplicant.conf')
-    setMessage(msg.toString())
-  } catch (e) {
-    setMessage(e.toString())
-    console.log(e.toString())
+  let resMsg = ''
+  let maxTryTimes = 10
+  while (maxTryTimes > 0) {
+    // try every 2 second
+    await sleep(2)
+    try{
+      let msg = execSync('wpa_supplicant -B -iwlan0 -c/etc/wpa_supplicant/wpa_supplicant.conf')
+      resMsg = msg.toString()
+      break
+    } catch (e) {
+      console.log(e.toString())
+      resMsg = e.toString()
+    }
+    maxTryTimes--
   }
+  setMessage(maxTryTimes.toString() + '' + resMsg)
 }
 
 function sleep (sec) {
