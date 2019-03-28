@@ -45,6 +45,65 @@ InputCharacteristic.prototype.onWriteRequest = function(data, offset, withoutRes
   callback(this.RESULT_SUCCESS)
 }
 
+
+// Input android
+
+let separateInputString = ''
+let separateInputStringCopy = ''
+let lastChangeTime = 0
+let clearTime = 5000
+
+setInterval(function () {
+  if (separateInputStringCopy !== separateInputString) {
+    separateInputStringCopy = separateInputString
+    lastChangeTime = new Date().getTime()
+  } else if (new Date().getTime() - lastChangeTime > clearTime && separateInputString !== '') {
+    lastChangeTime = new Date().getTime()
+    separateInputStringCopy = ''
+    separateInputString = ''
+    console.log('clear separateInputString')
+  }
+}, 1000)
+
+let InputCharacteristicSep = function() {
+  InputCharacteristicSep.super_.call(this, {
+    uuid: UUID.INPUT_SEP,
+    properties: ['write', 'writeWithoutResponse']
+  })
+}
+
+util.inherits(InputCharacteristicSep, BlenoCharacteristic)
+
+InputCharacteristicSep.prototype.onWriteRequest = function(data, offset, withoutResponse, callback) {
+  console.log('InputCharacteristicSep write request: ' + data.toString() + ' ' + offset + ' ' + withoutResponse)
+  separateInputString += data.toString()
+  let isLast = separateInputString.indexOf("&#&") >= 0
+  if (isLast) {
+    separateInputString = separateInputString.replace('&#&', '')
+    let inputArray = separateInputString.split('%&%')
+    lastChangeTime = new Date().getTime()
+    separateInputStringCopy = ''
+    separateInputString = ''
+    if (inputArray && inputArray.length < 3) {
+      console.log('Wrong input syntax.')
+      setMessage('Wrong input syntax.')
+      callback(this.RESULT_SUCCESS)
+      return
+    }
+    if (inputArray[0] !== config.key){
+      console.log('Wrong input key.')
+      setMessage('Wrong input key.')
+      callback(this.RESULT_SUCCESS)
+      return
+    }
+    let ssid = inputArray[1]
+    let password = inputArray[2]
+    let result = setWifi(ssid, password)
+  }
+  callback(this.RESULT_SUCCESS)
+}
+
+
 // NotifyMassage
 
 let NotifyMassageCharacteristic = function() {
@@ -104,11 +163,12 @@ async function setWifi (input_ssid, input_password) {
     }
   }
   let prefix = data
-  wifiArray.push(`network={\n\t\tssid="${input_ssid}"\n\t\tpsk="${input_password}"\n\t\tpriority=${maxPriority+1}\n\t}`)
+  wifiArray.push(`network={\n\t\tssid="${input_ssid}"\n\t\tscan_ssid=1\n\t\tpsk="${input_password}"\n\t\tpriority=${maxPriority+1}\n\t}`)
   let content = `${prefix}\n\t${wifiArray.join('\n\t')}`
   fs.writeFileSync(conf_path, content)
   try{
-    execSync('killall wpa_supplicant')
+    // execSync('killall wpa_supplicant')
+    execSync('ifconfig wlan0 down')
   } catch (e) {
     console.log(e.toString())
   }
@@ -118,16 +178,17 @@ async function setWifi (input_ssid, input_password) {
     // try every 2 second
     await sleep(2)
     try{
-      let msg = execSync('wpa_supplicant -B -iwlan0 -c/etc/wpa_supplicant/wpa_supplicant.conf')
+      // let msg = execSync('wpa_supplicant -B -iwlan0 -c/etc/wpa_supplicant/wpa_supplicant.conf')
+      let msg = execSync('ifconfig wlan0 up')
       resMsg = msg.toString()
       break
     } catch (e) {
       console.log(e.toString())
-      resMsg = e.toString()
+      resMsg = 'Commond failed.'
     }
     maxTryTimes--
   }
-  setMessage(maxTryTimes.toString() + '' + resMsg)
+  setMessage(maxTryTimes.toString() + ' success')
 }
 
 function sleep (sec) {
@@ -146,5 +207,6 @@ function setMessage (msg) {
 
 module.exports = {
   InputCharacteristic,
+  InputCharacteristicSep,
   NotifyMassageCharacteristic
 }
