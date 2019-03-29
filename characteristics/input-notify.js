@@ -162,13 +162,12 @@ async function setWifi (input_ssid, input_password) {
       data = data.replace(wifiMatch[i], '')
     }
   }
-  let prefix = data
+  let prefix = data.replace('Country=', 'country=')
   wifiArray.push(`network={\n\t\tssid="${input_ssid}"\n\t\tscan_ssid=1\n\t\tpsk="${input_password}"\n\t\tpriority=${maxPriority+1}\n\t}`)
   let content = `${prefix}\n\t${wifiArray.join('\n\t')}`
   fs.writeFileSync(conf_path, content)
   try{
-    // execSync('killall wpa_supplicant')
-    execSync('ifconfig wlan0 down')
+    execSync('killall wpa_supplicant')
   } catch (e) {
     console.log(e.toString())
   }
@@ -178,17 +177,16 @@ async function setWifi (input_ssid, input_password) {
     // try every 2 second
     await sleep(2)
     try{
-      // let msg = execSync('wpa_supplicant -B -iwlan0 -c/etc/wpa_supplicant/wpa_supplicant.conf')
-      let msg = execSync('ifconfig wlan0 up')
+      let msg = execSync('wpa_supplicant -B -iwlan0 -c/etc/wpa_supplicant/wpa_supplicant.conf')
       resMsg = msg.toString()
       break
     } catch (e) {
-      console.log(e.toString())
+      console.log(e)
       resMsg = 'Commond failed.'
     }
     maxTryTimes--
   }
-  setMessage(maxTryTimes.toString() + ' success')
+  setMessage(maxTryTimes.toString() + ' ' + resMsg)
 }
 
 function sleep (sec) {
