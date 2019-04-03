@@ -10,6 +10,7 @@
 git clone https://github.com/PiSugar/sugar-wifi-conf.git
 sudo -s . ./sugar-wifi-conf/wificonfig.sh
 
+## 可选参数：
 
 # 程序末尾可以加两个运行参数，可修改/etc/rc.local文件改变运行参数。
 # 第一个参数为key，如果要将key改为123456，可以这样设置：
@@ -21,31 +22,6 @@ sudo /home/pi/sugar-wifi-conf/build/sugar-wifi-conf pisugar /home/pi/sugar-wifi-
 
 ```
 
-### 调试步骤
-
-
-```
-#下载项目文件，示例是下载在pi用户目录下
-cd ~
-git clone https://github.com/PiSugar/sugar-wifi-conf.git
-cd sugar-wifi-conf/build
-
-# 修改文件权限
-chmod 777 binding.node
-chmod 777 sugar-wifi-conf
-
-# 测试是否可以运行，运行后使用微信小程序扫描。
-# 注意此时更改wifi可能会造成网络断开，程序结束。所以建议在设置开机启动后再测试修改wifi
-sudo sugar-wifi-conf
-
-# 设置开机启动
-sudo nano /etc/rc.local
-# 在exit 0之前添加一行： sudo /home/pi/sugar-wifi-conf/build/sugar-wifi-conf
-# 重启后即可使用！
-
-
-
-```
 
 
 
