@@ -16,7 +16,7 @@ sudo -s . ./sugar-wifi-conf/wificonfig.sh
 # 第一个参数为key，如果要将key改为123456，可以这样设置：
 sudo /home/pi/sugar-wifi-conf/build/sugar-wifi-conf 123456
 
-# 第二个参数是自定义配置json文件地址，如需显示cpu，内存等自定义信息
+# 第二个参数是自定义配置json文件地址，例如显示cpu，内存等自定义信息，可以通过配置文件让蓝牙传输这些信息。
 # 请参照custom_display.json文件创建配置文件，并将文件路径作为第二个参数传入，例如：
 sudo /home/pi/sugar-wifi-conf/build/sugar-wifi-conf pisugar /home/pi/sugar-wifi-conf/custom_display.json
 
