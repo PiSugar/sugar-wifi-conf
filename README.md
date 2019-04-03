@@ -9,8 +9,19 @@
 ```
 git clone https://github.com/PiSugar/sugar-wifi-conf.git
 sudo -s . ./sugar-wifi-conf/wificonfig.sh
+
+
+# 程序末尾可以加两个运行参数，可修改/etc/rc.local文件改变运行参数。
+# 第一个参数为key，如果要将key改为123456，可以这样设置：
+sudo /home/pi/sugar-wifi-conf/build/sugar-wifi-conf 123456
+
+# 第二个参数是自定义配置json文件地址，如需显示cpu，内存等自定义信息
+# 请参照custom_display.json文件创建配置文件，并将文件路径作为第二个参数传入，例如：
+sudo /home/pi/sugar-wifi-conf/build/sugar-wifi-conf pisugar /home/pi/sugar-wifi-conf/custom_display.json
+
 ```
-### 一般安装步骤
+
+### 调试步骤
 
 
 ```
@@ -32,10 +43,7 @@ sudo nano /etc/rc.local
 # 在exit 0之前添加一行： sudo /home/pi/sugar-wifi-conf/build/sugar-wifi-conf
 # 重启后即可使用！
 
-# 若想改变蓝牙设置的key，可在执行命令后面加一个参数，如果要将key改为123456，可以这样设置：
-sudo /home/pi/sugar-wifi-conf/build/sugar-wifi-conf 123456
 
-#不设置的话key将默认为pisugar
 
 ```
 
