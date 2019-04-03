@@ -10,6 +10,7 @@ let IpAddressCharacteristic = require('./characteristics/ip-address')
 let InputCharacteristic = require('./characteristics/input-notify').InputCharacteristic
 let InputCharacteristicSep = require('./characteristics/input-notify').InputCharacteristicSep
 let NotifyMassageCharacteristic = require('./characteristics/input-notify').NotifyMassageCharacteristic
+let CustomCharacteristics = require('./characteristics/custom-info')
 
 let BlenoPrimaryService = bleno.PrimaryService
 let BlenoCharacteristic = bleno.Characteristic
@@ -29,6 +30,7 @@ function wifiConfService() {
       new InputCharacteristic(),
       new InputCharacteristicSep(),
       new NotifyMassageCharacteristic(),
+      ...CustomCharacteristics
     ]
   })
 }

@@ -6,8 +6,9 @@ let config = require('../config')
 const fs = require('fs')
 const conf_path = '/etc/wpa_supplicant/wpa_supplicant.conf'
 
-let argv = process.argv.splice(2)
-if (argv.length > 0) config.key = argv[0]
+
+let argv = process.argv
+if (argv.length > 2) config.key = process.argv[2]
 
 let BlenoCharacteristic = bleno.Characteristic
 let message = ''
