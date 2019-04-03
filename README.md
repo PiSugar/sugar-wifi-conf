@@ -27,7 +27,7 @@ sudo /home/pi/sugar-wifi-conf/build/sugar-wifi-conf pisugar /home/pi/sugar-wifi-
 
 自定义配置文件参考以下格式：
 
-若配置文件格式有误，小程序端将无法获取自定义的信息。
+若配置文件格式有误或着因权限问题无法读取，小程序端将无法获取自定义的信息。
 
 ```
 {
