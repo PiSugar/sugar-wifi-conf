@@ -22,6 +22,9 @@ sudo /home/pi/sugar-wifi-conf/build/sugar-wifi-conf pisugar /home/pi/sugar-wifi-
 
 ```
 
+![PiSugar MiniAPP Demo](https://raw.githubusercontent.com/PiSugar/sugar-wifi-conf/master/image/demo.gif)
+
+
 自定义配置文件参考以下格式：
 
 若配置文件格式有误，小程序端将无法获取自定义的信息。
