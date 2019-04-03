@@ -22,8 +22,39 @@ sudo /home/pi/sugar-wifi-conf/build/sugar-wifi-conf pisugar /home/pi/sugar-wifi-
 
 ```
 
+自定义配置文件参考以下格式：
+若配置文件格式有误，小程序端将无法获取自定义的信息。
 
+```
+{
+  "manual": {
+    "cn" : "label、command获取的结果均不可超过20个英文字符，否则安卓手机会自动截取。interval表示建立连接后查询更新的频率，单位为秒。"
+  },
+  "items": [
+    {
+      "label": "CPU Temp",
+      "command": "vcgencmd measure_temp | cut -d = -f 2 | awk '{printf \"%s \", $1}'",
+      "interval": 5
+    },
+    {
+      "label": "CPU Load",
+      "command": "top -bn1 | grep load | awk '{printf \"%.2f%%\", $(NF-2)}'",
+      "interval": 1
+    },
+    {
+      "label": "Memory",
+      "command": "free -m | awk 'NR==2{printf \"%s/%sMB\", $3,$2 }'",
+      "interval": 5
+    },
+    {
+      "label": "UP Time",
+      "command": "uptime -p | cut -d 'p' -f 2 | awk '{ printf \"%s\", $0 }'",
+      "interval": 10
+    }
+  ]
+}
 
+```
 
 
 
