@@ -10,44 +10,55 @@
 git clone https://github.com/PiSugar/sugar-wifi-conf.git
 sudo -s . ./sugar-wifi-conf/wificonfig.sh
 
+## 可选参数：
 
 # 程序末尾可以加两个运行参数，可修改/etc/rc.local文件改变运行参数。
 # 第一个参数为key，如果要将key改为123456，可以这样设置：
 sudo /home/pi/sugar-wifi-conf/build/sugar-wifi-conf 123456
 
-# 第二个参数是自定义配置json文件地址，如需显示cpu，内存等自定义信息
+# 第二个参数是自定义配置json文件地址，例如显示cpu，内存等自定义信息，可以通过配置文件让蓝牙传输这些信息。
 # 请参照custom_display.json文件创建配置文件，并将文件路径作为第二个参数传入，例如：
 sudo /home/pi/sugar-wifi-conf/build/sugar-wifi-conf pisugar /home/pi/sugar-wifi-conf/custom_display.json
 
 ```
 
-### 调试步骤
+![PiSugar MiniAPP Demo](https://raw.githubusercontent.com/PiSugar/sugar-wifi-conf/master/image/demo.gif)
 
 
-```
-#下载项目文件，示例是下载在pi用户目录下
-cd ~
-git clone https://github.com/PiSugar/sugar-wifi-conf.git
-cd sugar-wifi-conf/build
+自定义配置文件参考以下格式：
 
-# 修改文件权限
-chmod 777 binding.node
-chmod 777 sugar-wifi-conf
-
-# 测试是否可以运行，运行后使用微信小程序扫描。
-# 注意此时更改wifi可能会造成网络断开，程序结束。所以建议在设置开机启动后再测试修改wifi
-sudo sugar-wifi-conf
-
-# 设置开机启动
-sudo nano /etc/rc.local
-# 在exit 0之前添加一行： sudo /home/pi/sugar-wifi-conf/build/sugar-wifi-conf
-# 重启后即可使用！
-
-
+若配置文件格式有误或着因权限问题无法读取，小程序端将无法获取自定义的信息。
 
 ```
+{
+  "manual": {
+    "cn" : "label、command获取的结果均不可超过20个英文字符，否则安卓手机会自动截取。interval表示建立连接后查询更新的频率，单位为秒。"
+  },
+  "items": [
+    {
+      "label": "CPU Temp",
+      "command": "vcgencmd measure_temp | cut -d = -f 2 | awk '{printf \"%s \", $1}'",
+      "interval": 5
+    },
+    {
+      "label": "CPU Load",
+      "command": "top -bn1 | grep load | awk '{printf \"%.2f%%\", $(NF-2)}'",
+      "interval": 1
+    },
+    {
+      "label": "Memory",
+      "command": "free -m | awk 'NR==2{printf \"%s/%sMB\", $3,$2 }'",
+      "interval": 5
+    },
+    {
+      "label": "UP Time",
+      "command": "uptime -p | cut -d 'p' -f 2 | awk '{ printf \"%s\", $0 }'",
+      "interval": 10
+    }
+  ]
+}
 
-
+```
 
 
 
