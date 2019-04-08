@@ -5,6 +5,7 @@ let UUID = require('../sugar-uuid')
 let config = require('../config')
 const fs = require('fs')
 const conf_path = '/etc/wpa_supplicant/wpa_supplicant.conf'
+const iface_path = '/etc/network/interfaces'
 
 
 let argv = process.argv
@@ -167,6 +168,11 @@ async function setWifi (input_ssid, input_password) {
   wifiArray.push(`network={\n\t\tssid="${input_ssid}"\n\t\tscan_ssid=1\n\t\tpsk="${input_password}"\n\t\tpriority=${maxPriority+1}\n\t}`)
   let content = `${prefix}\n\t${wifiArray.join('\n\t')}`
   fs.writeFileSync(conf_path, content)
+  // check if wlan0 available, otherwise let reboot
+  if (!isWlan0Ok()) {
+    setMessage('OK. Please reboot.')
+    return
+  }
   try{
     execSync('killall wpa_supplicant')
   } catch (e) {
@@ -189,6 +195,28 @@ async function setWifi (input_ssid, input_password) {
   }
   setMessage(maxTryTimes.toString() + ' ' + resMsg)
 }
+
+function isWlan0Ok() {
+  let data = fs.readFileSync(iface_path, 'utf8')
+  let rawContent = data.split('\n')
+  let foundWlan0 = false
+  let isOk = true
+  for (const i in rawContent) {
+    let line = rawContent[i].trim()
+    if (foundWlan0 && line.indexOf('interface ') >=0 && line.indexOf('#') !== 0) {
+      foundWlan0 = false
+    }
+    if (line.indexOf('interface wlan0') >=0 && line.indexOf('#') !== 0) {
+      foundWlan0 = true
+    }
+    if (foundWlan0 && line.indexOf('nohook wpa_supplicant') >=0 && line.indexOf('#') !== 0) {
+      isOk = false
+    }
+  }
+  console.log('Is wlan0 Ok ? ' + isOk)
+  return isOk
+}
+
 
 function sleep (sec) {
   console.log('wait for a moment...')
