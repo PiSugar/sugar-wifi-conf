@@ -17,8 +17,8 @@ sudo -s . ./sugar-wifi-conf/wificonfig.sh
 sudo /home/pi/sugar-wifi-conf/build/sugar-wifi-conf 123456
 
 # 第二个参数是自定义配置json文件地址，例如显示cpu，内存等自定义信息，可以通过配置文件让蓝牙传输这些信息。
-# 请参照custom_display.json文件创建配置文件，并将文件路径作为第二个参数传入，例如：
-sudo /home/pi/sugar-wifi-conf/build/sugar-wifi-conf pisugar /home/pi/sugar-wifi-conf/custom_display.json
+# 请参照custom_config.json文件创建配置文件，并将文件路径作为第二个参数传入，例如：
+sudo /home/pi/sugar-wifi-conf/build/sugar-wifi-conf pisugar /home/pi/sugar-wifi-conf/custom_config.json
 
 ```
 
@@ -28,13 +28,12 @@ sudo /home/pi/sugar-wifi-conf/build/sugar-wifi-conf pisugar /home/pi/sugar-wifi-
 自定义配置文件参考以下格式：
 
 若配置文件格式有误或着因权限问题无法读取，小程序端将无法获取自定义的信息。
+info为小程序显示的参数，注意command获得的结果不超过20个字符，interval为每次获取结果的间隔秒数。
+commands为小程序壳向树莓派发出的shell命令。
 
 ```
 {
-  "manual": {
-    "cn" : "label、command获取的结果均不可超过20个英文字符，否则安卓手机会自动截取。interval表示建立连接后查询更新的频率，单位为秒。"
-  },
-  "items": [
+  "info": [
     {
       "label": "CPU Temp",
       "command": "vcgencmd measure_temp | cut -d = -f 2 | awk '{printf \"%s \", $1}'",
@@ -54,6 +53,16 @@ sudo /home/pi/sugar-wifi-conf/build/sugar-wifi-conf pisugar /home/pi/sugar-wifi-
       "label": "UP Time",
       "command": "uptime -p | cut -d 'p' -f 2 | awk '{ printf \"%s\", $0 }'",
       "interval": 10
+    }
+  ],
+  "commands": [
+    {
+      "label": "shutdown",
+      "command": "shutdown"
+    },
+    {
+      "label": "reboot",
+      "command": "reboot"
     }
   ]
 }
