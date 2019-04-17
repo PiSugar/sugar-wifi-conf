@@ -88,6 +88,8 @@ InputCharacteristicSep.prototype.onWriteRequest = function(data, offset, without
   console.log('InputCharacteristicSep write request: ' + data.toString() + ' ' + offset + ' ' + withoutResponse)
   separateInputString += data.toString()
   let isLast = separateInputString.indexOf(endTag) >= 0
+  let commandToExecute
+  let commandUuid
   if (isLast) {
     separateInputString = separateInputString.replace(endTag, '')
     let inputArray = separateInputString.split(concatTag)
@@ -106,7 +108,6 @@ InputCharacteristicSep.prototype.onWriteRequest = function(data, offset, without
       callback(this.RESULT_SUCCESS)
       return
     }
-    let commandUuid
     try {
       commandUuid = inputArray[1].split('-').splice(-1)[0].toUpperCase()
     } catch (e) {
@@ -115,21 +116,19 @@ InputCharacteristicSep.prototype.onWriteRequest = function(data, offset, without
       callback(this.RESULT_SUCCESS)
       return
     }
-
-    let commandToExecute
-    for (let i in customArray) {
-      if (customArray[i].uuid.toUpperCase() === commandUuid) {
-        commandToExecute = customArray[i].command
-        break;
-      }
-    }
-    if (commandToExecute) {
-      response(exec(commandToExecute))
-    } else {
-      response("Command not found.")
-    }
   }
   callback(this.RESULT_SUCCESS)
+  for (let i in customArray) {
+    if (customArray[i].uuid.toUpperCase() === commandUuid) {
+      commandToExecute = customArray[i].command
+      break;
+    }
+  }
+  if (commandToExecute) {
+    response(exec(commandToExecute))
+  } else {
+    response("Command not found.")
+  }
 }
 
 characteristicArray.push(new InputCharacteristicSep())
