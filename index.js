@@ -11,10 +11,9 @@ let InputCharacteristic = require('./characteristics/input-notify').InputCharact
 let InputCharacteristicSep = require('./characteristics/input-notify').InputCharacteristicSep
 let NotifyMassageCharacteristic = require('./characteristics/input-notify').NotifyMassageCharacteristic
 let CustomCharacteristics = require('./characteristics/custom-info')
+let CustomCommandCharacteristics = require('./characteristics/custom-command')
 
 let BlenoPrimaryService = bleno.PrimaryService
-let BlenoCharacteristic = bleno.Characteristic
-let BlenoDescriptor = bleno.Descriptor
 
 console.log('Bleno starting...')
 
@@ -30,7 +29,8 @@ function wifiConfService() {
       new InputCharacteristic(),
       new InputCharacteristicSep(),
       new NotifyMassageCharacteristic(),
-      ...CustomCharacteristics
+      ...CustomCharacteristics,
+      ...CustomCommandCharacteristics
     ]
   })
 }

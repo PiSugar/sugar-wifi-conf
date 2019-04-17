@@ -6,7 +6,8 @@ let config = require('../config')
 const fs = require('fs')
 const conf_path = '/etc/wpa_supplicant/wpa_supplicant.conf'
 const iface_path = '/etc/network/interfaces'
-
+const concatTag = '%&%'
+const endTag = '&#&'
 
 let argv = process.argv
 if (argv.length > 2) config.key = process.argv[2]
@@ -28,7 +29,7 @@ util.inherits(InputCharacteristic, BlenoCharacteristic)
 
 InputCharacteristic.prototype.onWriteRequest = function(data, offset, withoutResponse, callback) {
   console.log('InputCharacteristic write request: ' + data.toString() + ' ' + offset + ' ' + withoutResponse)
-  let inputArray = data.toString().split('%&%')
+  let inputArray = data.toString().split(concatTag)
   if (inputArray && inputArray.length < 3) {
     console.log('Wrong input syntax.')
     setMessage('Wrong input syntax.')
@@ -79,10 +80,10 @@ util.inherits(InputCharacteristicSep, BlenoCharacteristic)
 InputCharacteristicSep.prototype.onWriteRequest = function(data, offset, withoutResponse, callback) {
   console.log('InputCharacteristicSep write request: ' + data.toString() + ' ' + offset + ' ' + withoutResponse)
   separateInputString += data.toString()
-  let isLast = separateInputString.indexOf("&#&") >= 0
+  let isLast = separateInputString.indexOf(endTag) >= 0
   if (isLast) {
-    separateInputString = separateInputString.replace('&#&', '')
-    let inputArray = separateInputString.split('%&%')
+    separateInputString = separateInputString.replace(endTag, '')
+    let inputArray = separateInputString.split(concatTag)
     lastChangeTime = new Date().getTime()
     separateInputStringCopy = ''
     separateInputString = ''
