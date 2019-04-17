@@ -81,7 +81,7 @@ try {
       }
     }
     valueCharacteristic.prototype.onNotify = function() {
-      console.log('Custom info on notify')
+      // console.log('Custom info on notify')
     }
     item.valueChar = new valueCharacteristic()
 

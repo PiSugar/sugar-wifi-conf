@@ -88,14 +88,14 @@ InputCharacteristicSep.prototype.onWriteRequest = function(data, offset, without
     separateInputStringCopy = ''
     separateInputString = ''
     if (inputArray && inputArray.length < 3) {
-      console.log('Wrong input syntax.')
-      setMessage('Wrong input syntax.')
+      console.log('Invalid syntax.')
+      setMessage('Invalid syntax.')
       callback(this.RESULT_SUCCESS)
       return
     }
     if (inputArray[0] !== config.key){
-      console.log('Wrong input key.')
-      setMessage('Wrong input key.')
+      console.log('Invalid key.')
+      setMessage('Invalid key.')
       callback(this.RESULT_SUCCESS)
       return
     }

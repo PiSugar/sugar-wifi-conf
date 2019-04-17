@@ -2,6 +2,7 @@ const execSync = require('child_process').execSync
 let util = require('util')
 let bleno = require('bleno')
 let UUID = require('../sugar-uuid')
+let config = require('../config')
 const fs = require('fs')
 const concatTag = '%&%'
 const endTag = '&#&'
@@ -13,15 +14,15 @@ let customArray = []
 let BlenoCharacteristic = bleno.Characteristic
 let BlenoDescriptor = bleno.Descriptor
 
-
 let argv = process.argv
+if (argv.length > 2) config.key = process.argv[2]
 if (argv.length > 3) jsonPath = process.argv[3]
 
 
 try {
   let result = JSON.parse(fs.readFileSync(jsonPath))
   customArray = result.commands
-  console.log('Custom Info Characteristics')
+  console.log('Custom Command Characteristics')
   console.log(customArray)
   customArray.map(function (item) {
 
@@ -40,14 +41,19 @@ try {
         ]
       })
     }
+    console.log('func created')
     util.inherits(labelCharacteristic, BlenoCharacteristic)
+    console.log('func created 2')
     item.labelChar = new labelCharacteristic()
+    console.log('func created 3')
     item.uuid = UUID.CUSTOM_COMMAND_LABEL + uuidEnd
+    console.log('func created 4')
     characteristicArray.push(item.labelChar)
+    console.log('func created 5')
     return item
   })
 } catch (e) {
-  console.log(e.toString())
+  console.log(e)
 }
 
 // Input android
@@ -89,21 +95,30 @@ InputCharacteristicSep.prototype.onWriteRequest = function(data, offset, without
     separateInputStringCopy = ''
     separateInputString = ''
     if (inputArray && inputArray.length < 2) {
-      console.log('Wrong input syntax.')
-      setMessage('Wrong input syntax.')
+      console.log('Invalid syntax.')
+      setMessage('Invalid syntax.')
       callback(this.RESULT_SUCCESS)
       return
     }
     if (inputArray[0] !== config.key) {
-      console.log('Wrong input key.')
-      setMessage('Wrong input key.')
+      console.log('Invalid key.')
+      setMessage('Invalid key.')
       callback(this.RESULT_SUCCESS)
       return
     }
-    let commandUuid = inputArray[1]
+    let commandUuid
+    try {
+      commandUuid = inputArray[1].split('-').splice(-1)[0].toUpperCase()
+    } catch (e) {
+      console.log('Invalid UUID.')
+      setMessage('Invalid UUID.')
+      callback(this.RESULT_SUCCESS)
+      return
+    }
+
     let commandToExecute
     for (let i in customArray) {
-      if (customArray[i].uuid === commandUuid) {
+      if (customArray[i].uuid.toUpperCase() === commandUuid) {
         commandToExecute = customArray[i].command
         break;
       }
@@ -163,11 +178,11 @@ characteristicArray.push(new NotifyMassageCharacteristic())
 
 function exec (cmd) {
   try {
-    let value = execSync(cmd)
+    let value = execSync(cmd).toString().trim()
+    if (value === '') value = 'success'
     return value
   } catch (e) {
-    console.log(e.toString())
-    return 'cmd error'
+    return e.toString()
   }
 }
 
@@ -182,8 +197,8 @@ async function response (string) {
     msgArray[msgArray.length - 1] += string[i]
   }
   for (let i in msgArray) {
-    message = msgArray[i]
-    await sleep(150)
+    setMessage(msgArray[i].toString())
+    await sleep(200)
   }
 }
 
@@ -193,6 +208,12 @@ function sleep (time) {
       resolve(1)
     }, time)
   })
+}
+
+
+function setMessage (msg) {
+  message = msg
+  messageTimestamp = new Date().getTime()
 }
 
 function guid4 () {

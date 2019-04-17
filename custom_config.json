@@ -1,8 +1,4 @@
 {
-  "manual": {
-    "cn" : "Info内部的label以及command获取的结果均不可超过20个英文字符，否则安卓手机会自动截取。interval表示建立连接后查询更新的频率，单位为秒。",
-    "en" : "Info lables and command responses should not be longer than 20 bytes, otherwise android would crop the data. Interval means the program will execute the command in every X seconds."
-  },
   "info": [
     {
       "label": "CPU Temp",
@@ -27,11 +23,11 @@
   ],
   "commands": [
     {
-      "lable": "shutdown",
+      "label": "shutdown",
       "command": "shutdown"
     },
     {
-      "lable": "reboot",
+      "label": "reboot",
       "command": "reboot"
     }
   ]
