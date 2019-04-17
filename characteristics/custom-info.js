@@ -18,7 +18,7 @@ if (argv.length > 3) jsonPath = process.argv[3]
 
 try {
   let result = JSON.parse(fs.readFileSync(jsonPath))
-  customArray = result.items
+  customArray = result.items || result.info
   console.log('Custom Info Characteristics')
   console.log(customArray)
   customArray.map(function (item) {
@@ -33,7 +33,7 @@ try {
         descriptors: [
           new BlenoDescriptor({
             uuid: uuidEnd,
-            value: 'PiSugar Custom ' + item.label
+            value: 'PiSugar Custom Info ' + item.label
           })
         ]
       })

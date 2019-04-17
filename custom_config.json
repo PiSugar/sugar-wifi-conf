@@ -1,8 +1,9 @@
 {
   "manual": {
-    "cn" : "label、command获取的结果均不可超过20个英文字符，否则安卓手机会自动截取。interval表示建立连接后查询更新的频率，单位为秒。"
+    "cn" : "Info内部的label以及command获取的结果均不可超过20个英文字符，否则安卓手机会自动截取。interval表示建立连接后查询更新的频率，单位为秒。",
+    "en" : "Info lables and command responses should not be longer than 20 bytes, otherwise android would crop the data. Interval means the program will execute the command in every X seconds."
   },
-  "items": [
+  "info": [
     {
       "label": "CPU Temp",
       "command": "vcgencmd measure_temp | cut -d = -f 2 | awk '{printf \"%s \", $1}'",
@@ -22,6 +23,16 @@
       "label": "UP Time",
       "command": "uptime -p | cut -d 'p' -f 2 | awk '{ printf \"%s\", $0 }'",
       "interval": 10
+    }
+  ],
+  "commands": [
+    {
+      "lable": "shutdown",
+      "command": "shutdown"
+    },
+    {
+      "lable": "reboot",
+      "command": "reboot"
     }
   ]
 }
