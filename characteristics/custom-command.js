@@ -41,15 +41,10 @@ try {
         ]
       })
     }
-    console.log('func created')
     util.inherits(labelCharacteristic, BlenoCharacteristic)
-    console.log('func created 2')
     item.labelChar = new labelCharacteristic()
-    console.log('func created 3')
     item.uuid = UUID.CUSTOM_COMMAND_LABEL + uuidEnd
-    console.log('func created 4')
     characteristicArray.push(item.labelChar)
-    console.log('func created 5')
     return item
   })
 } catch (e) {
@@ -88,6 +83,7 @@ InputCharacteristicSep.prototype.onWriteRequest = function(data, offset, without
   console.log('InputCharacteristicSep write request: ' + data.toString() + ' ' + offset + ' ' + withoutResponse)
   separateInputString += data.toString()
   let isLast = separateInputString.indexOf(endTag) >= 0
+  let commandToExecute
   if (isLast) {
     separateInputString = separateInputString.replace(endTag, '')
     let inputArray = separateInputString.split(concatTag)
@@ -115,21 +111,21 @@ InputCharacteristicSep.prototype.onWriteRequest = function(data, offset, without
       callback(this.RESULT_SUCCESS)
       return
     }
-
-    let commandToExecute
     for (let i in customArray) {
-      if (customArray[i].uuid.toUpperCase() === commandUuid) {
+      if (customArray[i].uuid.toUpperCase() === commandUuid || customArray[i].uuid.toUpperCase().substr(8) === commandUuid) {
         commandToExecute = customArray[i].command
         break;
       }
     }
+  }
+  callback(this.RESULT_SUCCESS)
+  if (isLast) {
     if (commandToExecute) {
       response(exec(commandToExecute))
     } else {
       response("Command not found.")
     }
   }
-  callback(this.RESULT_SUCCESS)
 }
 
 characteristicArray.push(new InputCharacteristicSep())
