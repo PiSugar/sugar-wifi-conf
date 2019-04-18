@@ -84,6 +84,7 @@ InputCharacteristicSep.prototype.onWriteRequest = function(data, offset, without
   separateInputString += data.toString()
   let isLast = separateInputString.indexOf(endTag) >= 0
   let commandToExecute
+  let commandUuid
   if (isLast) {
     separateInputString = separateInputString.replace(endTag, '')
     let inputArray = separateInputString.split(concatTag)
@@ -102,7 +103,6 @@ InputCharacteristicSep.prototype.onWriteRequest = function(data, offset, without
       callback(this.RESULT_SUCCESS)
       return
     }
-    let commandUuid
     try {
       commandUuid = inputArray[1].split('-').splice(-1)[0].toUpperCase()
     } catch (e) {
