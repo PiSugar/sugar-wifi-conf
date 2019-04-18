@@ -82,7 +82,7 @@ note: please ensure that the config file is accessable. There are two different 
 
 ```
 
-BLE datasheet
+### BLE datasheet
 
 Service uuid: FD2B-4448-AA0F-4A15-A62F-EB0BE77A0000
 
@@ -102,7 +102,7 @@ Service uuid: FD2B-4448-AA0F-4A15-A62F-EB0BE77A0000
 | CUSTOM_COMMAND_LABEL | 0000-0000-0000-0000-0000-FD2BCCCCXXXX | read | label of custom command |
 
 
-Input schemes
+### Input schemes
 
 | charateristic | manual |
 | - | :- |
