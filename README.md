@@ -2,8 +2,9 @@
 
 ![PiSugar MiniAPP](https://raw.githubusercontent.com/PiSugar/sugar-wifi-conf/master/image/qrcode.jpg)
 
-让树莓派提供蓝牙BLE服务，使用小程序即可随时更改树莓派的wifi连接，获取wifi名称和ip地址等信息。
-适用于带有蓝牙的树莓派型号(已测试3B+, zero w)，在Raspbain官方镜像可运行
+让树莓派提供蓝牙BLE服务，使用小程序即可随时更改树莓派的wifi连接，获取wifi名称和ip地址等信息，也可以自定义显示系统信息，接受和执行shell命令。
+
+适用于带有蓝牙的树莓派型号(已测试3B+, zero w)，在Raspbain官方镜像可运行。
 
 ### 简易安装步骤
 ```
