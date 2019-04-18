@@ -94,14 +94,9 @@ commands为小程序壳可向树莓派发出的shell命令。
 | 特征值 | 操作说明 |
 | - | :- |
 | INPUT_SEP | 发送格式为 key&%&ssid&%&password%#% （分为多条20字节数据传送） |
-| CUSTOM_COMMAND_INPUT | 发送格式为 key&%&custom_command_label_uuid%#%（分为多条20字节数据传送，label_uuid为使用的命令CUSTOM_COMMAND_LABEL的uuid，可只使用最后四位） |
+| CUSTOM_COMMAND_INPUT | 发送格式为 key&%&custom_command_label_uuid%#%（分为多条20字节数据传送，label_uuid为使用的命令CUSTOM_COMMAND_LABEL的uuid，可只使用最后四位，例如：key&%&1234%#% 将执行uuid末四位为1234的命令） |
 | CUSTOM_COMMAND_NOTIFY | 分为多条20字节数据传送，结束符为%#% |
-| CUSTOM_INFO_LABEL | 例如：uuid为FD2BCCCA1234对应uuid为FD2BCCCB1234的CUSTOM_INFO特征值 |
-
-
-
-
-
+| CUSTOM_INFO_LABEL | 例如：uuid为FD2BCCCA1234的CUSTOM_INFO_LABEL 对应 uuid为FD2BCCCB1234的CUSTOM_INFO特征值 |
 
 
 
