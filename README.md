@@ -13,11 +13,9 @@ sudo -s . ./sugar-wifi-conf/wificonfig.sh
 ## 可选参数：
 
 # 程序末尾可以加两个运行参数，可修改/etc/rc.local文件改变运行参数。
-# 第一个参数为key，如果要将key改为123456，可以这样设置：
-sudo /home/pi/sugar-wifi-conf/build/sugar-wifi-conf 123456
-
-# 第二个参数是自定义配置json文件地址，例如显示cpu，内存等自定义信息，可以通过配置文件让蓝牙传输这些信息。
-# 请参照custom_config.json文件创建配置文件，并将文件路径作为第二个参数传入，例如：
+# 第一个参数为key
+# 第二个参数是自定义配置json文件地址
+# 例如：
 sudo /home/pi/sugar-wifi-conf/build/sugar-wifi-conf pisugar /home/pi/sugar-wifi-conf/custom_config.json
 
 ```
@@ -28,8 +26,10 @@ sudo /home/pi/sugar-wifi-conf/build/sugar-wifi-conf pisugar /home/pi/sugar-wifi-
 自定义配置文件参考以下格式：
 
 若配置文件格式有误或着因权限问题无法读取，小程序端将无法获取自定义的信息。
+
 info为小程序显示的参数，注意command获得的结果不超过20个字符，interval为每次获取结果的间隔秒数。
-commands为小程序壳向树莓派发出的shell命令。
+
+commands为小程序壳可向树莓派发出的shell命令。
 
 ```
 {
@@ -68,6 +68,40 @@ commands为小程序壳向树莓派发出的shell命令。
 }
 
 ```
+
+本程序对外提供的蓝牙BLE服务
+
+服务uuid: FD2B-4448-AA0F-4A15-A62F-EB0BE77A0000
+
+| 特征值 | uuid | 属性 | 说明 |
+| - | :- | :-: | :-: |
+| SERVICE_NAME | FD2B-4448-AA0F-4A15-A62F-EB0BE77A0001 | read | 服务名称，固定值 |
+| DEVICE_MODEL | FD2B-4448-AA0F-4A15-A62F-EB0BE77A0002 | read | 树莓派版本 |
+| WIFI_NAME | FD2B-4448-AA0F-4A15-A62F-EB0BE77A0003 | notify | 正在连接的wifi名称 |
+| IP_ADDRESS | FD2B-4448-AA0F-4A15-A62F-EB0BE77A0004 | notify | 现有内网ip地址 |
+| INPUT | FD2B-4448-AA0F-4A15-A62F-EB0BE77A0005 | write | 输入wifi配置信息（已弃用） |
+| NOTIFY_MESSAGE | FD2B-4448-AA0F-4A15-A62F-EB0BE77A0006 | notify | wifi配置操作返回的信息 |
+| INPUT_SEP | FD2B-4448-AA0F-4A15-A62F-EB0BE77A0007 | write | 输入wifi配置信息（分包） |
+| CUSTOM_COMMAND_INPUT | FD2B-4448-AA0F-4A15-A62F-EB0BE77A0008 | write | 输入自定义命令（分包） |
+| CUSTOM_COMMAND_NOTIFY | FD2B-4448-AA0F-4A15-A62F-EB0BE77A0009 | notify | 命令执行返回（分包） |
+| CUSTOM_INFO_LABEL | 0000-0000-0000-0000-0000-FD2BCCCAXXXX | read | 自定义信息显示的标签名 |
+| CUSTOM_INFO | 0000-0000-0000-0000-0000-FD2BCCCBXXXX | notify | 自定义信息显示的数值 |
+| CUSTOM_COMMAND_LABEL | 0000-0000-0000-0000-0000-FD2BCCCCXXXX | read | 自定义命令名称 |
+
+
+操作说明
+
+| 特征值 | 操作说明 |
+| - | :- |
+| INPUT_SEP | 发送格式为 key&%&ssid&%&password%#% （分为多条20字节数据传送） |
+| CUSTOM_COMMAND_INPUT | 发送格式为 key&%&custom_command_label_uuid%#%（分为多条20字节数据传送，label_uuid为使用的命令CUSTOM_COMMAND_LABEL的uuid，可只使用最后四位） |
+| CUSTOM_COMMAND_NOTIFY | 分为多条20字节数据传送，结束符为%#% |
+| CUSTOM_INFO_LABEL | 例如：uuid为FD2BCCCA1234对应uuid为FD2BCCCB1234的CUSTOM_INFO特征值 |
+
+
+
+
+
 
 
 
