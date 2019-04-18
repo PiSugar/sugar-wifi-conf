@@ -74,7 +74,7 @@ commands为小程序壳可向树莓派发出的shell命令。
 服务uuid: FD2B-4448-AA0F-4A15-A62F-EB0BE77A0000
 
 | 特征值 | uuid | 属性 | 说明 |
-| - | :- | :-: | :-: |
+| - | :- | :- | :- |
 | SERVICE_NAME | FD2B-4448-AA0F-4A15-A62F-EB0BE77A0001 | read | 服务名称，固定值 |
 | DEVICE_MODEL | FD2B-4448-AA0F-4A15-A62F-EB0BE77A0002 | read | 树莓派版本 |
 | WIFI_NAME | FD2B-4448-AA0F-4A15-A62F-EB0BE77A0003 | notify | 正在连接的wifi名称 |
