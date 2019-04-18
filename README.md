@@ -69,7 +69,7 @@ commands为小程序壳可向树莓派发出的shell命令。
 
 ```
 
-本程序对外提供的蓝牙BLE服务
+蓝牙BLE服务详细参数
 
 服务uuid: FD2B-4448-AA0F-4A15-A62F-EB0BE77A0000
 
