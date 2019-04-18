@@ -24,7 +24,7 @@ sudo /home/pi/sugar-wifi-conf/build/sugar-wifi-conf pisugar /home/pi/sugar-wifi-
 ![PiSugar MiniAPP Demo](https://raw.githubusercontent.com/PiSugar/sugar-wifi-conf/master/image/demo.gif)
 
 
-自定义配置文件参考以下格式：
+### 通过修改配置文件可以让你的树莓派通过BLE更方便的发送系统信息，接受和执行shell命令
 
 若配置文件格式有误或着因权限问题无法读取，小程序端将无法获取自定义的信息。
 
