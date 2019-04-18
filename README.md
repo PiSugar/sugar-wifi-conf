@@ -2,21 +2,28 @@
 
 ![PiSugar MiniAPP](https://raw.githubusercontent.com/PiSugar/sugar-wifi-conf/master/image/qrcode.jpg)
 
-让树莓派提供蓝牙BLE服务，使用小程序即可随时更改树莓派的wifi连接，获取wifi名称和ip地址等信息，也可以自定义显示系统信息，接受和执行shell命令。
 
-适用于带有蓝牙的树莓派型号(已测试3B+, zero w)，在Raspbain官方镜像可运行。
+A BLE service to configure wifi over bluetooth for a Raspberry Pi. You can:
 
-### 简易安装步骤
+- get wifi name, ip address, pi model
+- config wifi
+- get other custom info
+- remote control the pi to execute shell script and get response 
+
+Tested on Raspberry Pi 3B/3B+/zero w (models with bluetooth), Raspbian.
+
+
+### Setup
 ```
 git clone https://github.com/PiSugar/sugar-wifi-conf.git
 sudo -s . ./sugar-wifi-conf/wificonfig.sh
 
-## 可选参数：
+## optional parameters
 
-# 程序末尾可以加两个运行参数，可修改/etc/rc.local文件改变运行参数。
-# 第一个参数为key
-# 第二个参数是自定义配置json文件地址
-# 例如：
+# edit /etc/rc.local to append parameters to execute path 
+# param 1: custom key 
+# param 2: path to custom config file
+# example: 
 sudo /home/pi/sugar-wifi-conf/build/sugar-wifi-conf pisugar /home/pi/sugar-wifi-conf/custom_config.json
 
 ```
@@ -24,13 +31,10 @@ sudo /home/pi/sugar-wifi-conf/build/sugar-wifi-conf pisugar /home/pi/sugar-wifi-
 ![PiSugar MiniAPP Demo](https://raw.githubusercontent.com/PiSugar/sugar-wifi-conf/master/image/demo.gif)
 
 
-### 通过修改配置文件可以让你的树莓派通过BLE更方便的发送系统信息，接受和执行shell命令
+### By editing the custom config file, you can let the pi broadcast custom data, recieve and execute preset shell scripts
 
-若配置文件格式有误或着因权限问题无法读取，小程序端将无法获取自定义的信息。
+note: please ensure that the config file is accessable. There are two different types of custom item. 
 
-info为小程序显示的参数，注意command获得的结果不超过20个字符，interval为每次获取结果的间隔秒数。
-
-commands为小程序壳可向树莓派发出的shell命令。
 
 ```
 {
@@ -58,8 +62,16 @@ commands为小程序壳可向树莓派发出的shell命令。
   ],
   "commands": [
     {
+      "label": "ls",
+      "command": "ls"
+    },
+    {
       "label": "shutdown",
       "command": "shutdown"
+    },
+    {
+      "label": "cancel shutdown",
+      "command": "shutdown -c"
     },
     {
       "label": "reboot",
@@ -70,34 +82,34 @@ commands为小程序壳可向树莓派发出的shell命令。
 
 ```
 
-蓝牙BLE服务详细参数
+BLE datasheet
 
-服务uuid: FD2B-4448-AA0F-4A15-A62F-EB0BE77A0000
+Service uuid: FD2B-4448-AA0F-4A15-A62F-EB0BE77A0000
 
-| 特征值 | uuid | 属性 | 说明 |
+| charateristic | uuid | properties | note |
 | - | :- | :- | :- |
-| SERVICE_NAME | FD2B-4448-AA0F-4A15-A62F-EB0BE77A0001 | read | 服务名称，固定值 |
-| DEVICE_MODEL | FD2B-4448-AA0F-4A15-A62F-EB0BE77A0002 | read | 树莓派版本 |
-| WIFI_NAME | FD2B-4448-AA0F-4A15-A62F-EB0BE77A0003 | notify | 正在连接的wifi名称 |
-| IP_ADDRESS | FD2B-4448-AA0F-4A15-A62F-EB0BE77A0004 | notify | 现有内网ip地址 |
-| INPUT | FD2B-4448-AA0F-4A15-A62F-EB0BE77A0005 | write | 输入wifi配置信息（已弃用） |
-| NOTIFY_MESSAGE | FD2B-4448-AA0F-4A15-A62F-EB0BE77A0006 | notify | wifi配置操作返回的信息 |
-| INPUT_SEP | FD2B-4448-AA0F-4A15-A62F-EB0BE77A0007 | write | 输入wifi配置信息（分包） |
-| CUSTOM_COMMAND_INPUT | FD2B-4448-AA0F-4A15-A62F-EB0BE77A0008 | write | 输入自定义命令（分包） |
-| CUSTOM_COMMAND_NOTIFY | FD2B-4448-AA0F-4A15-A62F-EB0BE77A0009 | notify | 命令执行返回（分包） |
-| CUSTOM_INFO_LABEL | 0000-0000-0000-0000-0000-FD2BCCCAXXXX | read | 自定义信息显示的标签名 |
-| CUSTOM_INFO | 0000-0000-0000-0000-0000-FD2BCCCBXXXX | notify | 自定义信息显示的数值 |
-| CUSTOM_COMMAND_LABEL | 0000-0000-0000-0000-0000-FD2BCCCCXXXX | read | 自定义命令名称 |
+| SERVICE_NAME | FD2B-4448-AA0F-4A15-A62F-EB0BE77A0001 | read | service name |
+| DEVICE_MODEL | FD2B-4448-AA0F-4A15-A62F-EB0BE77A0002 | read | pi model info |
+| WIFI_NAME | FD2B-4448-AA0F-4A15-A62F-EB0BE77A0003 | notify | current wifi name |
+| IP_ADDRESS | FD2B-4448-AA0F-4A15-A62F-EB0BE77A0004 | notify | internal ip addresses |
+| INPUT | FD2B-4448-AA0F-4A15-A62F-EB0BE77A0005 | write | input for configuring wifi (deprecated) |
+| NOTIFY_MESSAGE | FD2B-4448-AA0F-4A15-A62F-EB0BE77A0006 | notify | response for configuring wifi |
+| INPUT_SEP | FD2B-4448-AA0F-4A15-A62F-EB0BE77A0007 | write | input for configuring wifi（subcontracting） |
+| CUSTOM_COMMAND_INPUT | FD2B-4448-AA0F-4A15-A62F-EB0BE77A0008 | write | input for custom commands（subcontracting） |
+| CUSTOM_COMMAND_NOTIFY | FD2B-4448-AA0F-4A15-A62F-EB0BE77A0009 | notify | response for custom commands（subcontracting） |
+| CUSTOM_INFO_LABEL | 0000-0000-0000-0000-0000-FD2BCCCAXXXX | read | label of custom info |
+| CUSTOM_INFO | 0000-0000-0000-0000-0000-FD2BCCCBXXXX | notify | value of custom info |
+| CUSTOM_COMMAND_LABEL | 0000-0000-0000-0000-0000-FD2BCCCCXXXX | read | label of custom command |
 
 
-操作说明
+Input schemes
 
-| 特征值 | 操作说明 |
+| charateristic | manual |
 | - | :- |
-| INPUT_SEP | 发送格式为 key&%&ssid&%&password%#% （分为多条20字节数据传送），例如：pisugar&%&home_wifi&%&12345678%#% |
-| CUSTOM_COMMAND_INPUT | 发送格式为 key&%&custom_command_label_uuid%#%（分为多条20字节数据传送，custom_command_label_uuid可只使用最后四位，例如：key&%&1234%#% 将执行lable_uuid末四位为1234的命令） |
-| CUSTOM_COMMAND_NOTIFY | 分为多条20字节数据传送，结束符为%#% |
-| CUSTOM_INFO_LABEL | 例如：uuid为FD2BCCCA1234的CUSTOM_INFO_LABEL 对应 uuid为FD2BCCCB1234的CUSTOM_INFO特征值 |
+| INPUT_SEP | scheme: key&%&ssid&%&password%#% (subcontract in 20 btyes) example：pisugar&%&home_wifi&%&12345678%#% |
+| CUSTOM_COMMAND_INPUT | scheme: key&%&custom_command_label_uuid%#% (subcontract in 20 btyes, custom_command_label_uuid) |
+| CUSTOM_COMMAND_NOTIFY | subcontract in 20 btyes, ended in "%#%" |
+| CUSTOM_INFO_LABEL | a custom info label (FD2BCCCA1234) will have a corresponding value (FD2BCCCB1234) |
 
 
 
