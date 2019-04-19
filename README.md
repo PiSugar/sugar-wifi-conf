@@ -20,7 +20,7 @@ This project is a server-side program. To access client-side app, please use Wec
   <img width="670" src="https://raw.githubusercontent.com/PiSugar/sugar-wifi-conf/master/image/miniapp-demo-en-fix2.jpg">
 </p>
 
-### Setup
+### Setup on your pi
 ```
 git clone https://github.com/PiSugar/sugar-wifi-conf.git
 sudo -s . ./sugar-wifi-conf/wificonfig.sh
