@@ -23,7 +23,10 @@ sudo /home/pi/sugar-wifi-conf/build/sugar-wifi-conf pisugar /home/pi/sugar-wifi-
 
 ```
 
-![PiSugar MiniAPP Demo](https://raw.githubusercontent.com/PiSugar/sugar-wifi-conf/master/image/demo.gif)
+<p align="center">
+  <img width="190" src="https://raw.githubusercontent.com/PiSugar/sugar-wifi-conf/master/image/demo.gif">
+  <img width="670" src="https://raw.githubusercontent.com/PiSugar/sugar-wifi-conf/master/image/miniapp-demo-cn-fix2.jpg">
+</p>
 
 ### 自定义配置
 
