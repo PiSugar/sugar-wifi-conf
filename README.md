@@ -39,6 +39,7 @@ sudo /home/pi/sugar-wifi-conf/build/sugar-wifi-conf pisugar /home/pi/sugar-wifi-
 
 note: please ensure that the config file is accessable.
 
+example custom_config.json
 
 ```
 {
