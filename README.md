@@ -13,7 +13,7 @@ A BLE service to configure wifi over bluetooth for a Raspberry Pi. You can:
 
 Tested on Raspberry Pi 3B/3B+/zero w (models with bluetooth), Raspbian.
 
-This project is a server-side program. To access client-side app, please use wechat app to scan the QR-code.
+This project is a server-side program. To access client-side app, please use Wechat app to scan the QR-code above.
 
 <p align="center">
   <img width="190" src="https://raw.githubusercontent.com/PiSugar/sugar-wifi-conf/master/image/demo.gif">
