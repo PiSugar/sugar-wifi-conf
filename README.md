@@ -34,10 +34,9 @@ sudo /home/pi/sugar-wifi-conf/build/sugar-wifi-conf pisugar /home/pi/sugar-wifi-
 
 ```
 
+### Custom configuration
 
-### By editing the custom config file, you can let the pi broadcast custom data, recieve and execute custom shell scripts
-
-note: please ensure that the config file is accessable.
+By editing the custom config file, you can let the pi broadcast custom data, recieve and execute custom shell scripts. Note: please ensure that the config file is accessable.
 
 custom_config.json example
 
