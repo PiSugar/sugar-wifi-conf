@@ -1,43 +1,58 @@
 # sugar-wifi-conf
 
-![PiSugar MiniAPP](https://raw.githubusercontent.com/PiSugar/sugar-wifi-conf/master/image/qrcode.jpg)
+![PiSugar Wechat MiniApp](https://raw.githubusercontent.com/PiSugar/sugar-wifi-conf/master/image/qrcode.jpg)
 
+English|[简体中文](https://github.com/PiSugar/sugar-wifi-conf/blob/master/README.cn_zh.md)
 
 A BLE service to configure wifi over bluetooth for a Raspberry Pi. You can:
 
 - get wifi name, ip address, pi model
 - config wifi
-- get other custom info
-- remote control the pi to execute shell script and get response 
+- get other custom info, e.g. CPU tempreture, CPU load
+- remote control the pi to execute shell script and get response, e.g. shutdown, reboot 
 
 Tested on Raspberry Pi 3B/3B+/zero w (models with bluetooth), Raspbian.
 
+This project is a server-side program. To access client-side app, please use wechat app to scan the QR-code.
+
+![PiSugar MiniAPP Demo](https://raw.githubusercontent.com/PiSugar/sugar-wifi-conf/master/image/demo.gif)
 
 ### Setup
 ```
 git clone https://github.com/PiSugar/sugar-wifi-conf.git
 sudo -s . ./sugar-wifi-conf/wificonfig.sh
 
+# the scrpit will add sugar-wifi-conf to /etc/rc.local so that it can run on startup
+
 ## optional parameters
 
 # edit /etc/rc.local to append parameters to execute path 
-# param 1: custom key 
+# param 1: key 
 # param 2: path to custom config file
 # example: 
 sudo /home/pi/sugar-wifi-conf/build/sugar-wifi-conf pisugar /home/pi/sugar-wifi-conf/custom_config.json
 
 ```
 
-![PiSugar MiniAPP Demo](https://raw.githubusercontent.com/PiSugar/sugar-wifi-conf/master/image/demo.gif)
 
+### By editing the custom config file, you can let the pi broadcast custom data, recieve and execute custom shell scripts
 
-### By editing the custom config file, you can let the pi broadcast custom data, recieve and execute preset shell scripts
-
-note: please ensure that the config file is accessable. There are two different types of custom item. 
+note: please ensure that the config file is accessable.
 
 
 ```
 {
+  "note": {
+    "info" : {
+      "label": "name of the item, within 20 bytes",
+      "command": "the command to get value of the item, within 20 bytes",
+      "interval": "run command to get data in every X seconds"
+    },
+   "commands": {
+      "label": "name of the item, within 20 bytes",
+      "command": "the command to execute"
+    }
+  },
   "info": [
     {
       "label": "CPU Temp",
@@ -84,6 +99,8 @@ note: please ensure that the config file is accessable. There are two different 
 
 ### BLE datasheet
 
+You can build your own client-side app base on this datasheet.
+
 Service uuid: FD2B-4448-AA0F-4A15-A62F-EB0BE77A0000
 
 | charateristic | uuid | properties | note |
@@ -102,14 +119,15 @@ Service uuid: FD2B-4448-AA0F-4A15-A62F-EB0BE77A0000
 | CUSTOM_COMMAND_LABEL | 0000-0000-0000-0000-0000-FD2BCCCCXXXX | read | label of custom command |
 
 
-### Input schemes
+### Input and Output format
 
-| charateristic | manual |
+| charateristic | format |
 | - | :- |
-| INPUT_SEP | scheme: key&%&ssid&%&password%#% (subcontract in 20 btyes) example：pisugar&%&home_wifi&%&12345678%#% |
-| CUSTOM_COMMAND_INPUT | scheme: key&%&custom_command_label_uuid%#% (subcontract in 20 btyes, custom_command_label_uuid) |
+| INPUT_SEP | format: key&%&ssid&%&password%#% (subcontract in 20 btyes) e.g. pisugar&%&home_wifi&%&12345678%#% |
+| CUSTOM_COMMAND_INPUT | format: key&%&last_4_digit_uuid%#% (subcontract in 20 btyes) e.g. pisugar&%&1234%#% will execute the custom command with its label uuid end in "1234" |
 | CUSTOM_COMMAND_NOTIFY | subcontract in 20 btyes, ended in "%#%" |
 | CUSTOM_INFO_LABEL | a custom info label (FD2BCCCA1234) will have a corresponding value (FD2BCCCB1234) |
+| CUSTOM_COMMAND_LABEL | all custom commands with be brocast in uuid "FD2BCCCCXXXX" |
 
 
 
