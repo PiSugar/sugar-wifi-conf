@@ -15,9 +15,10 @@ Tested on Raspberry Pi 3B/3B+/zero w (models with bluetooth), Raspbian.
 
 This project is a server-side program. To access client-side app, please use wechat app to scan the QR-code.
 
-![PiSugar MiniAPP Demo](https://raw.githubusercontent.com/PiSugar/sugar-wifi-conf/master/image/demo.gif)
-
-![PiSugar MiniAPP Demo](https://raw.githubusercontent.com/PiSugar/sugar-wifi-conf/master/image/miniapp-demo-en.jpg)
+<p align="center">
+  <img width="190" src="https://raw.githubusercontent.com/PiSugar/sugar-wifi-conf/master/image/demo.gif">
+  <img width="670" src="https://raw.githubusercontent.com/PiSugar/sugar-wifi-conf/master/image/miniapp-demo-en-fix2.jpg">
+</p>
 
 ### Setup
 ```
