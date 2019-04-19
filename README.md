@@ -17,6 +17,8 @@ This project is a server-side program. To access client-side app, please use wec
 
 ![PiSugar MiniAPP Demo](https://raw.githubusercontent.com/PiSugar/sugar-wifi-conf/master/image/demo.gif)
 
+![PiSugar MiniAPP Demo](https://raw.githubusercontent.com/PiSugar/sugar-wifi-conf/master/image/miniapp-demo-en.gif)
+
 ### Setup
 ```
 git clone https://github.com/PiSugar/sugar-wifi-conf.git
