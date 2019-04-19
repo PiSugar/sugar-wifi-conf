@@ -9,7 +9,7 @@ A BLE service to configure wifi over bluetooth for a Raspberry Pi. You can:
 - get wifi name, ip address, pi model
 - config wifi
 - get other custom info, e.g. CPU tempreture, CPU load
-- remote control the pi to execute shell script and get response, e.g. shutdown, reboot 
+- remote control the pi to execute shell script and get response, such as shutdown, reboot 
 
 Tested on Raspberry Pi 3B/3B+/zero w (models with bluetooth), Raspbian.
 
