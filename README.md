@@ -2,7 +2,7 @@
 
 ![PiSugar Wechat MiniApp](https://raw.githubusercontent.com/PiSugar/sugar-wifi-conf/master/image/qrcode.jpg)
 
-English|[简体中文](https://github.com/PiSugar/sugar-wifi-conf/blob/master/README.cn_zh.md)
+English | [简体中文](https://github.com/PiSugar/sugar-wifi-conf/blob/master/README.cn_zh.md)
 
 A BLE service to configure wifi over bluetooth for a Raspberry Pi. You can:
 
