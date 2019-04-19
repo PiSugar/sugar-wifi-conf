@@ -93,7 +93,7 @@ commands为小程序壳可向树莓派发出的shell命令。
 | CUSTOM_COMMAND_LABEL | 0000-0000-0000-0000-0000-FD2BCCCCXXXX | read | 自定义命令名称 |
 
 
-操作说明
+### 通讯格式
 
 | 特征值 | 操作说明 |
 | - | :- |
