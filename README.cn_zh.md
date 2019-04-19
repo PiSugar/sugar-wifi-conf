@@ -25,10 +25,11 @@ sudo /home/pi/sugar-wifi-conf/build/sugar-wifi-conf pisugar /home/pi/sugar-wifi-
 
 ![PiSugar MiniAPP Demo](https://raw.githubusercontent.com/PiSugar/sugar-wifi-conf/master/image/demo.gif)
 
+### 自定义配置
 
-### 通过修改配置文件可以让你的树莓派通过BLE更方便的发送系统信息，接受和执行shell命令
+通过修改配置文件可以让你的树莓派通过BLE更方便的发送系统信息，接受和执行shell命令
 
-若配置文件格式有误或着因权限问题无法读取，小程序端将无法获取自定义的信息。
+注意：若配置文件格式有误或着因权限问题无法读取，小程序端将无法获取自定义的信息。
 
 info为小程序显示的参数，注意command获得的结果不超过20个字符，interval为每次获取结果的间隔秒数。
 
@@ -72,7 +73,7 @@ commands为小程序壳可向树莓派发出的shell命令。
 
 ```
 
-蓝牙BLE服务详细参数
+### 蓝牙BLE服务详细参数
 
 服务uuid: FD2B-4448-AA0F-4A15-A62F-EB0BE77A0000
 
@@ -97,9 +98,9 @@ commands为小程序壳可向树莓派发出的shell命令。
 | 特征值 | 操作说明 |
 | - | :- |
 | INPUT_SEP | 发送格式为 key&%&ssid&%&password%#% （分为多条20字节数据传送），例如：pisugar&%&home_wifi&%&12345678%#% |
-| CUSTOM_COMMAND_INPUT | 发送格式为 key&%&custom_command_label_uuid%#%（分为多条20字节数据传送，custom_command_label_uuid可只使用最后四位，例如：key&%&1234%#% 将执行lable_uuid末四位为1234的命令） |
+| CUSTOM_COMMAND_INPUT | 发送格式为 key&%&4_digit_uuid%#%（分为多条20字节数据传送，例如：key&%&1234%#% 将执行CUSTOM_COMMAND_LABEL末四位uuid为1234的命令） |
 | CUSTOM_COMMAND_NOTIFY | 分为多条20字节数据传送，结束符为%#% |
 | CUSTOM_INFO_LABEL | 例如：uuid为FD2BCCCA1234的CUSTOM_INFO_LABEL 对应 uuid为FD2BCCCB1234的CUSTOM_INFO特征值 |
-
+| CUSTOM_COMMAND_LABEL | 所有的自定义命令都会广播成uuid为 FD2BCCCCXXXX 的特征值，读取特征值可以获取命令的label, uuid后四位可以用发送执行 |
 
 
