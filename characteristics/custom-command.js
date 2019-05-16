@@ -1,4 +1,5 @@
 const execSync = require('child_process').execSync
+const exec = require('child_process').exec
 let util = require('util')
 let bleno = require('bleno')
 let UUID = require('../sugar-uuid')
@@ -121,7 +122,13 @@ InputCharacteristicSep.prototype.onWriteRequest = function(data, offset, without
   callback(this.RESULT_SUCCESS)
   if (isLast) {
     if (commandToExecute) {
-      response(exec(commandToExecute))
+      exec(commandToExecute, (error, stdout, stderr) => {
+        if (error) {
+          response(`exec error: ${error}`)
+          return
+        }
+        response(`exec done \n: ${stdout}`)
+      })
     } else {
       response("Command not found.")
     }
@@ -172,15 +179,6 @@ NotifyMassageCharacteristic.prototype.onNotify = function() {
 
 characteristicArray.push(new NotifyMassageCharacteristic())
 
-function exec (cmd) {
-  try {
-    let value = execSync(cmd).toString().trim()
-    if (value === '') value = 'success'
-    return value
-  } catch (e) {
-    return e.toString()
-  }
-}
 
 async function response (string) {
   message = ''
