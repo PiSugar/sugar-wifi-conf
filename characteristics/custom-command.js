@@ -127,8 +127,9 @@ InputCharacteristicSep.prototype.onWriteRequest = function(data, offset, without
           response(`exec error: ${error}`)
           return
         }
-        response(`exec done \n: ${stdout}`)
+        response(stdout)
       })
+      response('exec done.\n')
     } else {
       response("Command not found.")
     }
