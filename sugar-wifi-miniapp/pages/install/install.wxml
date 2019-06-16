@@ -1,0 +1,13 @@
+<!--pages/install/install.wxml-->
+<view class="container">
+  <view class="logo">
+    <image class="logo-img" src="../../image/pisugar.png"></image>
+  </view>
+  <view>
+    <text class="title">sugar-wifi-conf 简易安装步骤</text>
+    <textarea class="content" value="{{manual}}" maxlength="500" disabled="true" ></textarea>
+    <button bindtap='copyText'>复制代码</button>
+    <text class="desc">本项目由派星人厨房进行维护</text>
+    <text class="desc">了解更多详情请访问 www.pisugar.com</text>
+  </view>
+</view>

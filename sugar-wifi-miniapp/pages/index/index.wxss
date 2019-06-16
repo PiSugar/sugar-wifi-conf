@@ -1,0 +1,60 @@
+/**index.wxss**/
+.state{
+  font-size: 25rpx;
+}
+.pi-list{
+  margin-top: 10rpx;
+}
+
+.pi-item{
+  box-sizing: border-box;
+  width: 100%;
+  height: 200rpx;
+  padding: 30rpx 30rpx;
+  background-color: #ffcf00;
+  border-radius: 8px;
+  box-shadow: 0 2px 15px 5px rgba(255, 207, 0, 0.2);
+  margin-bottom: 20rpx;
+  transition: all 0.1s ease-out;
+}
+
+.pi-item:active{
+  background-color: #ffca00;
+  box-shadow: 0 0px 5px 3px rgba(255, 180, 0, 0.2);
+  transform: scale(0.99)
+}
+
+.pi-name{
+  font-size: 50rpx;
+}
+
+.pi-id{
+  display: block;
+  font-size: 24rpx;
+}
+
+.logo-img{
+  position: fixed;
+  bottom: 55px;
+  left: 50%;
+  margin-left: -36px;
+  width: 72px;
+  height: 25px;
+  opacity: 0.3;
+}
+
+.slogan{
+  position: fixed;
+  bottom: 20px;
+  left: 0;
+  width: 100%;
+  height: 25px;
+  font-size: 26rpx;
+  text-align: center;
+  opacity: 0.5;
+}
+
+.manual{
+  font-weight: bold;
+  text-decoration: underline;
+}
