@@ -8,6 +8,8 @@
 
 适用于带有蓝牙的树莓派型号(已测试3B+, zero w)，在Raspbain官方镜像可运行。
 
+小程序源代码详见sugar-wifi-miniapp文件夹。
+
 ### 简易安装步骤
 ```
 git clone https://github.com/PiSugar/sugar-wifi-conf.git
