@@ -1,0 +1,72 @@
+<!--pages/detail/detail.wxml-->
+<view class="container">
+  <view class="info-wrap">
+    <view class="device-header">
+      <view class="logo">
+        <image class="logo-img" src="../../image/pisugar.png"></image>
+      </view>
+      <text class="name" wx:if="{{!nameMode}}" bindtap="changeNameMode">{{deviceName}}</text>
+      <input class="name" wx:if="{{nameMode}}" focus="nameMode" bindblur="changeDeviceName" placeholder="备注名称" value="{{deviceName}}"/>
+    </view>
+    <view class="row">
+      <view class="info-item">
+        <text class="info-label">Device Id</text>
+        <text class="info-content">{{deviceId}}</text>
+      </view>
+      <view class="info-item">
+        <text class="info-label">Model</text>
+        <text class="info-content">{{deviceModel}}</text>
+      </view>
+    </view>
+    <view class="row">
+      <view class="info-item">
+        <text class="info-label">Wifi</text>
+        <text class="info-content">{{wifiName}}</text>
+      </view>
+      <view class="info-item">
+        <text class="info-label">Ip Address</text>
+        <text class="info-content">{{ipAddress}}</text>
+      </view>
+    </view>
+    <view class="row">
+      <view class="info-item" wx:for="{{customInfo}}" wx:for-item="item" wx:key="item">
+        <text class="info-label">{{item.label}}</text>
+        <text class="info-content">{{item.value}}</text>
+      </view>
+    </view>
+  </view>
+  <view class="tabs">
+    <view class="tab-item" bindtap='bindSelectWifiTab'>
+      <text class="title {{currentTab==='wifi'?'bold':''}}">WIFI Config</text>
+      <view wx:if="{{currentTab === 'wifi'}}" class="select-pad"></view>
+    </view>
+    <view wx:if="{{customCommands.length}}" class="tab-item" bindtap='bindSelectCommandTab'>
+      <text class="title {{currentTab==='command'?'bold':''}}">Command</text>
+      <view wx:if="{{currentTab === 'command'}}" class="select-pad"></view>
+    </view>
+  </view>
+  <view class="setting" wx:if="{{currentTab === 'wifi'}}">
+    <view class="section">
+      <view class="section-title">Wifi SSID</view>
+      <input class="section-input" bindinput="bindSsid" placeholder="WIFI名称(不含中文)" value="{{ssid}}"/>
+      <button class="wifiBtn" bindtap="getWifi">auto</button>
+    </view>
+    <view class="section">
+      <view class="section-title">Wifi Password</view>
+      <input class="section-input" bindinput="bindPass" placeholder="WIFI密码" />
+    </view>
+    <view class="section">
+      <view class="section-title">Key (default: pisugar)</view>
+      <input class="section-input" bindinput="bindKey" placeholder="服务Key，默认为pisugar" value="pisugar"/>
+    </view>
+    <button class="submit" bindtap="setWifi">Submit</button>
+  </view>
+  <view class="setting" wx:if="{{currentTab === 'command'}}">
+    <view class="section">
+      <view class="section-title">Key (default: pisugar)</view>
+      <input class="section-input" bindinput="bindKey" placeholder="服务Key，默认为pisugar" value="{{key}}"/>
+    </view>
+    <button wx:for="{{customCommands}}" wx:for-item="item" wx:key="item" class="command-btn" data-uuid="{{item.uuidLabel}}" bindtap="sendCommand">{{item.label}}</button>
+    <textarea class="response-content" value="{{responseText}}" maxlength="500" disabled="true" ></textarea>
+  </view>
+</view>

@@ -1,0 +1,134 @@
+/* pages/detail/detail.wxss */
+.container{
+  padding-top: 0;
+}
+.device-header{
+  position: relative;
+  width: 100%;
+  box-sizing: border-box;
+  font-size: 24px;
+  font-weight: bold;
+  margin-bottom: 15px;
+  top: -10px;
+}
+
+.logo-img{
+  width: 100px;
+  height: 34px;
+  opacity: 0.3;
+}
+
+.info-wrap{
+  padding: 20px 20px 20px 10px;
+  float: left;
+  width: 100%;
+  box-sizing: border-box;
+}
+
+.info-item{
+  position: relative;
+  display: inline-block;
+  width: 50%;
+  font-size: 25rpx;
+  box-sizing: border-box;
+  height: 50px;
+  margin-bottom: 10px;
+}
+
+.info-label{
+  position: absolute;
+  top: 0;
+  display: block;
+  color: #666;
+  font-size: 12px;
+}
+
+.info-content{
+  position: absolute;
+  display: block;
+  top: 20px;
+}
+
+.tabs{
+  padding: 10px;
+}
+
+.tab-item{
+  position: relative;
+  display: inline-block;
+  margin-right: 20px;
+}
+
+.select-pad{
+  position: absolute;
+  width: 100%;
+  height: 6px;
+  bottom: 0;
+  left: 0;
+  background-color: #ffcf00;
+  border-radius: 3px;
+}
+
+.setting{
+  box-sizing: border-box;
+  padding: 20px 10px;
+}
+
+.title{
+  display: block;
+  font-size: 30rpx;
+  margin-bottom: 10px;
+}
+
+.title.bold{
+  font-weight: bold;
+}
+
+.section{
+  position: relative;
+  margin-bottom: 10px;
+  width: 250px;
+}
+
+.section-title{
+  font-size: 25rpx;
+  margin-bottom: 4px;
+}
+
+.section-input{
+  border-bottom: 1rpx solid #999;
+  font-size: 30rpx;
+}
+
+.submit{
+  margin-left: 0;
+  margin-top: 20px;
+  width: 100px;
+  font-size: 14px;
+}
+
+.wifiBtn{
+  position: absolute;
+  top: 14px;
+  right: 0;
+  width: 50px;
+  height: 30px;
+  font-size: 30rpx;
+  line-height: 36rpx;
+  padding: 5px;
+  z-index: 1000;
+}
+
+.command-btn{
+  display: inline-block;
+  font-size: 14px;
+  margin-right: 6px;
+  margin-bottom: 6px;
+}
+
+.response-content{
+  background-color: #333;
+  color: white;
+  width: 100%;
+  border-radius: 4px;
+}
