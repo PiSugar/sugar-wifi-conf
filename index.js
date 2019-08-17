@@ -5,7 +5,7 @@ let config = require('./config')
 const execSync = require('child_process').execSync
 
 let ServiceNameCharacteristic = require('./characteristics/service-name')
-let DeviceModelCharacteristic = require('./characteristics/devie-model')
+let DeviceModelCharacteristic = require('./characteristics/device-model')
 let WifiNameCharacteristic = require('./characteristics/wifi-name')
 let IpAddressCharacteristic = require('./characteristics/ip-address')
 let InputCharacteristic = require('./characteristics/input-notify').InputCharacteristic

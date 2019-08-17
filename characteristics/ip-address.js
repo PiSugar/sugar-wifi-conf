@@ -18,6 +18,9 @@ IpAddressCharacteristic.prototype.onSubscribe = function(maxValueSize, updateVal
   console.log('IpAddressCharacteristic subscribe')
   this.ip = getIPAddress()
   updateValueCallback(new Buffer(this.ip))
+  setTimeout(() => {
+    updateValueCallback(new Buffer(this.ip))
+  }, 2000)
   this.changeInterval = setInterval(function() {
     let newIp = getIPAddress()
     if (newIp === this.ip) return
