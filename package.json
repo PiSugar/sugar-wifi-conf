@@ -5,8 +5,8 @@
   "main": "index.js",
   "scripts": {
     "test": "echo \"Error: no test specified\" && exit 1",
-    "pkg" : "pkg -t node8-linux-armv7 -o ./build/sugar-wifi-conf index.js",
-    "tar" : "tar -zcvf release/sugar-wifi-conf.tar.gz build"
+    "pkg": "pkg -t node8-linux-armv7 -o ./build/sugar-wifi-conf index.js",
+    "tar": "tar -zcvf release/sugar-wifi-conf.tar.gz build"
   },
   "repository": {
     "type": "git",
@@ -30,5 +30,9 @@
   "homepage": "https://github.com/PiSugar/sugar-wifi-conf#readme",
   "dependencies": {
     "bleno": "^0.5.0"
+  },
+  "devDependencies": {
+    "babel-plugin-transform-runtime": "^6.23.0",
+    "babel-preset-stage-2": "^6.24.1"
   }
 }

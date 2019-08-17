@@ -18,6 +18,9 @@ WifiNameCharacteristic.prototype.onSubscribe = function(maxValueSize, updateValu
   console.log('WifiNameCharacteristic subscribe')
   this.wifiName = getWifiName()
   updateValueCallback(new Buffer(this.wifiName))
+  setTimeout(() => {
+    updateValueCallback(new Buffer(this.wifiName))
+  }, 2000)
   this.changeInterval = setInterval(function() {
     let newWifiName = getWifiName()
     if (newWifiName === this.wifiName) return
