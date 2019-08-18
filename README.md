@@ -22,7 +22,12 @@ If you don't have wechat, you can use web-bluetooth to connect to your pi. Make 
   <img width="670" src="https://raw.githubusercontent.com/PiSugar/sugar-wifi-conf/master/image/miniapp-demo-en-fix2.jpg">
 </p>
 
-### Setup on your pi
+### Quick Install
+```
+wget http://cdn.pisugar.com/release/sugarwificonfig.sh -O- | sh
+```
+
+### Install from Github
 ```
 git clone https://github.com/PiSugar/sugar-wifi-conf.git
 sudo -s . ./sugar-wifi-conf/wificonfig.sh
