@@ -25,9 +25,10 @@ try {
   customArray = result.commands
   console.log('Custom Command Characteristics')
   console.log(customArray)
-  customArray.map(function (item) {
+  customArray.map(function (item, index) {
 
-    let uuidEnd = guid4()
+    let uuidEnd = guid4(index)
+    console.log(UUID.CUSTOM_COMMAND_LABEL + uuidEnd)
 
     let labelCharacteristic = function() {
       labelCharacteristic.super_.call(this, {
@@ -48,6 +49,22 @@ try {
     characteristicArray.push(item.labelChar)
     return item
   })
+  let count = customArray.length
+  let CommandCountCharacteristic = function() {
+    CommandCountCharacteristic.super_.call(this, {
+      uuid: UUID.CUSTOM_COMMAND_COUNT,
+      properties: ['read'],
+      value: new Buffer(count.toString()),
+      descriptors: [
+        new BlenoDescriptor({
+          uuid: UUID.CUSTOM_COMMAND_COUNT,
+          value: 'Custom Command Count'
+        })
+      ]
+    })
+  }
+  util.inherits(CommandCountCharacteristic, BlenoCharacteristic)
+  characteristicArray.push(new CommandCountCharacteristic())
 } catch (e) {
   console.log(e)
 }
@@ -211,11 +228,10 @@ function setMessage (msg) {
   messageTimestamp = new Date().getTime()
 }
 
-function guid4 () {
-  return 'xxxx'.replace(/[xy]/g, function(c) {
-    let r = Math.random()*16|0, v = c === 'x' ? r : (r&0x3|0x8)
-    return v.toString(16)
-  })
+function guid4(index) {
+  let string = (index + 1).toString(16)
+  string = '0'.repeat(4 - string.length) + string
+  return string
 }
 
 module.exports = characteristicArray
