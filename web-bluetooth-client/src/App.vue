@@ -98,8 +98,11 @@ export default {
       commandOutputShouldRefresh: false,
       loading: null,
       charLength: -1,
+      customInfoCount: 0,
+      customCommandCount: 0,
       isAndroid: navigator.userAgent.indexOf('Android') > -1 || navigator.userAgent.indexOf('Adr') > -1,
       isIphone: navigator.userAgent.indexOf('iPhone') > -1 || navigator.userAgent.indexOf('iphone') > -1
+      // isIphone: true
     }
   },
   mounted () {
@@ -121,7 +124,15 @@ export default {
           that.serverId = server.device.id
           return server.getPrimaryService(UUID.SERVICE_ID)
         })
-        .then(service => service.getCharacteristics())
+        .then(service => {
+          if (this.isIphone) {
+            // iOS webBLE does not support getCharacteristics()
+            console.log('ios webBLE')
+            return this.webBleConnect(service)
+          } else {
+            return service.getCharacteristics()
+          }
+        })
         .then(characteristics => {
           that.characteristicsList = characteristics
           that.isConnected = true
@@ -129,6 +140,54 @@ export default {
           // console.log(that.characteristicsList)
         })
         .catch(console.log)
+    },
+    webBleConnect (service) {
+      const that = this
+      return new Promise(async resolve => {
+        await service.getCharacteristic(UUID.PREFIX + UUID.CUSTOM_INFO_COUNT)
+          .then(characteristic => characteristic.readValue())
+          .then(i => i.buffer)
+          .then(this.ab2str)
+          .then(parseInt)
+          .then(value => {
+            console.log('custom-info-count ' + value)
+            that.customInfoCount = value
+          })
+        await service.getCharacteristic(UUID.PREFIX + UUID.CUSTOM_COMMAND_COUNT)
+          .then(characteristic => characteristic.readValue())
+          .then(i => i.buffer)
+          .then(this.ab2str)
+          .then(parseInt)
+          .then(value => {
+            console.log('custom-command-count ' + value)
+            that.customCommandCount = value
+          })
+        let customInfoList = []
+        for (let index = 0; index < that.customInfoCount; index++) {
+          let ending = (index + 1).toString(16)
+          ending = '0'.repeat(4 - ending.length) + ending
+          customInfoList.push(UUID.PREFIX + UUID.CUSTOM_INFO + ending)
+          customInfoList.push(UUID.PREFIX + UUID.CUSTOM_INFO_LABEL + ending)
+        }
+        let customCommandList = []
+        for (let index = 0; index < that.customCommandCount; index++) {
+          let ending = (index + 1).toString(16)
+          ending = '0'.repeat(4 - ending.length) + ending
+          customCommandList.push(UUID.PREFIX + UUID.CUSTOM_COMMAND_LABEL + ending)
+        }
+        resolve(Promise.all([
+          service.getCharacteristic(UUID.SERVICE_NAME),
+          service.getCharacteristic(UUID.DEVICE_MODEL),
+          service.getCharacteristic(UUID.WIFI_NAME),
+          service.getCharacteristic(UUID.IP_ADDRESS),
+          service.getCharacteristic(UUID.NOTIFY_MESSAGE),
+          service.getCharacteristic(UUID.INPUT_SEP),
+          service.getCharacteristic(UUID.CUSTOM_COMMAND_INPUT),
+          service.getCharacteristic(UUID.CUSTOM_COMMAND_NOTIFY),
+          ...customInfoList.map(i => service.getCharacteristic(i)),
+          ...customCommandList.map(i => service.getCharacteristic(i))
+        ]))
+      })
     },
     ab2str (buf) {
       return String.fromCharCode.apply(null, new Uint8Array(buf));
