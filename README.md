@@ -15,6 +15,8 @@ Tested on Raspberry Pi 3B/3B+/zero w (models with bluetooth) with Raspbian.
 
 To access client-side app, please use Wechat app to scan the QR-code above. Source code of client-side is in folder /sugar-wifi-miniapp.
 
+If you don't have wechat, you can use web-bluetooth to connect to your pi. Make sure your device and broswer support web-bluetooth api, visit [here](https://www.pisugar.com/sugar-wifi-conf) to connect. (Tested on MacOS and Android with Chrome, iOS doesn't support web-bluetooth) Source code of web-bluetooth client is in folder /web-bluetooth-client.
+
 <p align="center">
   <img width="190" src="https://raw.githubusercontent.com/PiSugar/sugar-wifi-conf/master/image/demo.gif">
   <img width="670" src="https://raw.githubusercontent.com/PiSugar/sugar-wifi-conf/master/image/miniapp-demo-en-fix2.jpg">
