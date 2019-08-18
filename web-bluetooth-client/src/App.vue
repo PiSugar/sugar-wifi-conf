@@ -37,29 +37,37 @@
           </el-input>
         </el-row>
         <el-row>
-          <el-button @click="inputWifi">Confirm</el-button>
+          <el-button @click="inputWifi" :disabled="wifiLock">Submit</el-button>
         </el-row>
       </div>
       <div v-if="isConnected" class="command-panel panel">
         <div class="panel-title">Custom Commands</div>
-        <el-row>
-          <div v-for="item in commandList" :key="item.uuid" class="button-wrap"><el-button size="small" round>{{item.label}}</el-button></div>
-        </el-row>
-        <el-row>
-          <el-input placeholder="Key (Default: pisugar)" v-model="key">
-            <template slot="prepend">Key</template>
-          </el-input>
-        </el-row>
-        <el-row>
-          <el-input
-            type="textarea"
-            placeholder="Output"
-            v-model="commandOutput"
-            :rows="10"
-            :disabled="true"></el-input>
-        </el-row>
+        <template v-if="commandList.length > 0">
+          <el-row>
+            <div v-for="item in commandList" :key="item.uuid" class="button-wrap">
+              <el-button size="small" round @click="sendCommand(item.uuid)">{{item.label}}</el-button>
+            </div>
+          </el-row>
+          <el-row>
+            <el-input placeholder="Key (Default: pisugar)" v-model="key">
+              <template slot="prepend">Key</template>
+            </el-input>
+          </el-row>
+          <el-row>
+            <el-input
+              type="textarea"
+              placeholder="Output"
+              v-model="commandOutput"
+              :rows="10"
+            ></el-input>
+          </el-row>
+        </template>
+        <p v-else>
+          No custom command is found.
+        </p>
       </div>
     </div>
+    <div class="copyright">This Project is maintained by <a href="https://github.com/PiSugar/sugar-wifi-conf" target="_blank">PiSugar Kitchen</a>. Open source under GPL-3.0 license.</div>
   </div>
 </template>
 
@@ -82,11 +90,15 @@ export default {
       ssid: '',
       password: '',
       key: 'pisugar',
-      commandOutput: '',
-      characteristics: [],
+      wifiLock: false,
+      characteristicsList: [],
       infoList: [],
       commandList: [],
-      loading: null
+      commandOutput: '',
+      commandOutputShouldRefresh: false,
+      loading: null,
+      charLength: -1,
+      isAndroid: navigator.userAgent.indexOf('Android') > -1 || navigator.userAgent.indexOf('Adr') > -1
     }
   },
   mounted () {
@@ -110,10 +122,10 @@ export default {
         })
         .then(service => service.getCharacteristics())
         .then(characteristics => {
-          that.characteristics = characteristics
+          that.characteristicsList = characteristics
           that.isConnected = true
           that.loading.close()
-          // console.log(that.characteristics)
+          // console.log(that.characteristicsList)
         })
         .catch(console.log)
     },
@@ -121,46 +133,65 @@ export default {
       return String.fromCharCode.apply(null, new Uint8Array(buf));
     },
     getCharacteristic (uuid) {
-      return this.characteristics.find(i => i.uuid === uuid)
+      return this.characteristicsList.find(i => i.uuid === uuid)
     },
     subscribeCharacteristic (uuid) {
-      this.getCharacteristic(uuid).addEventListener('characteristicvaluechanged', event => {
-        if (event.target.uuid === UUID.NOTIFY_MESSAGE) {
-          let msg = this.ab2str(event.target.value.buffer)
-          console.log(msg)
-        } else if (event.target.uuid === UUID.CUSTOM_COMMAND_NOTIFY) {
-          let msg = this.ab2str(event.target.value.buffer)
-          console.log(msg)
-        } else {
-          this.infoList.find(i => i.uuid === uuid).value = this.ab2str(event.target.value.buffer)
-        }
+      return new Promise(async resolve => {
+        this.getCharacteristic(uuid).addEventListener('characteristicvaluechanged', event => {
+          if (event.target.uuid === UUID.NOTIFY_MESSAGE) {
+            let msg = this.ab2str(event.target.value.buffer)
+            const h = this.$createElement
+            this.$notify({
+              title: 'Error',
+              message: h('i', { style: 'color: teal'}, msg)
+            })
+          } else if (event.target.uuid === UUID.CUSTOM_COMMAND_NOTIFY) {
+            let msg = this.ab2str(event.target.value.buffer)
+            if (this.commandOutputShouldRefresh) {
+              this.commandOutputShouldRefresh = false
+              this.commandOutput = ''
+            }
+            let output = this.commandOutput + msg
+            if (output.endsWith('&#&')) {
+              output = output.replace('&#&', '')
+              this.commandOutputShouldRefresh = true
+            }
+            this.commandOutput = output
+          } else {
+            this.infoList.find(i => i.uuid === uuid).value = this.ab2str(event.target.value.buffer)
+          }
+        })
+        await this.getCharacteristic(uuid).startNotifications()
+        resolve()
       })
-      this.getCharacteristic(uuid).startNotifications()
     },
     readInfoCharacteristic (uuid) {
-      this.getCharacteristic(uuid).readValue()
-        .then(i => i.buffer)
-        .then(this.ab2str)
-        .then(this.updateFunc(uuid))
+      return new Promise(resolve => {
+        this.getCharacteristic(uuid).readValue()
+          .then(i => i.buffer)
+          .then(this.ab2str)
+          .then((value) => {
+            let char = this.infoList.find(i => i.uuid === uuid)
+            let char_label = this.infoList.find(i => i.uuid_label === uuid)
+            if (char) {
+              char.value = value
+            } else {
+              char_label.label = value
+            }
+            resolve()
+          })
+      })
     },
     readCommandLabel (uuid) {
-      this.getCharacteristic(uuid).readValue()
-        .then(i => i.buffer)
-        .then(this.ab2str)
-        .then((label) => {
-          this.commandList.find(i => i.uuid === uuid).label = label
-        })
-    },
-    updateFunc (uuid) {
-      let char = this.infoList.find(i => i.uuid === uuid)
-      let char_label = this.infoList.find(i => i.uuid_label === uuid)
-      return value => {
-        if (char) {
-          char.value = value
-        } else {
-          char_label.label = value
-        }
-      }
+      return new Promise(resolve => {
+        this.getCharacteristic(uuid).readValue()
+          .then(i => i.buffer)
+          .then(this.ab2str)
+          .then((label) => {
+            this.commandList.find(i => i.uuid === uuid).label = label
+            resolve()
+          })
+      })
     },
     inputWifi () {
       let key = this.key.trim().replace(/\|/g, "*")
@@ -168,21 +199,32 @@ export default {
       let password = this.password.trim().replace(/\|/g, "*")
       let errMsg
       if (ssid === '') {
-        errMsg = 'SSID不能为空'
+        errMsg = 'SSID cannot be empty.'
       }
       if (password === '') {
-        errMsg = '密码不能为空'
+        errMsg = 'Password cannot be empty.'
       }
       if (errMsg) {
-        console.log('error')
+        const h = this.$createElement
+        this.$notify({
+          title: 'Error',
+          message: h('i', { style: 'color: teal'}, errMsg)
+        })
         return
       }
+      this.wifiLock = true
+      setTimeout(() => {
+        this.wifiLock = false
+      }, 4000)
       let sendArray = this.str2abs(`${key}%&%${ssid}%&%${password}&#&`)
       this.sendSeparately(sendArray, UUID.INPUT_SEP)
     },
+    sendCommand (uuid) {
+      let sendArray = this.str2abs(`${this.key}%&%${uuid.slice(-4)}&#&`)
+      this.sendSeparately(sendArray, UUID.CUSTOM_COMMAND_INPUT)
+    },
     async sendSeparately (array, uuid) {
       for (const i in array) {
-        console.log(`sending wifi setting: ${array[i]}`)
         await this.getCharacteristic(uuid).writeValue(array[i])
         await this.wait(0.4)
       }
@@ -215,52 +257,65 @@ export default {
     }
   },
   watch: {
-    isConnected (val, oldVal) {
+    async isConnected (val, oldVal) {
       if (val === true && oldVal === false) {
         console.log('Connected!')
         this.infoList = []
         this.infoList.push({
+          preset: true,
           uuid: '',
           label: 'Device ID',
           value: this.serverId
         })
         this.infoList.push({
+          preset: true,
           uuid: UUID.DEVICE_MODEL,
           label: 'Model',
           value: ' '
         })
         this.infoList.push({
+          preset: true,
           uuid: UUID.WIFI_NAME,
           label: 'Wifi',
-          value: ' '
+          value: '...'
         })
         this.infoList.push({
+          preset: true,
           uuid: UUID.IP_ADDRESS,
           label: 'IP Address',
-          value: ' '
+          value: '...'
         })
-        this.subscribeCharacteristic(UUID.WIFI_NAME)
-        this.subscribeCharacteristic(UUID.IP_ADDRESS)
-        this.readInfoCharacteristic(UUID.DEVICE_MODEL)
-        this.subscribeCharacteristic(UUID.NOTIFY_MESSAGE)
-        this.subscribeCharacteristic(UUID.CUSTOM_COMMAND_NOTIFY)
-        this.characteristics.filter(i => i.uuid.indexOf(UUID.CUSTOM_INFO_LABEL) >= 0).map(i => {
+      }
+    },
+    async characteristicsList (val, oldVal) {
+      if (val.length > 0) {
+        await this.subscribeCharacteristic(UUID.WIFI_NAME)
+        await this.subscribeCharacteristic(UUID.IP_ADDRESS)
+        await this.readInfoCharacteristic(UUID.DEVICE_MODEL)
+        await this.subscribeCharacteristic(UUID.NOTIFY_MESSAGE)
+        await this.subscribeCharacteristic(UUID.CUSTOM_COMMAND_NOTIFY)
+        this.characteristicsList.filter(i => i.uuid.indexOf(UUID.CUSTOM_INFO_LABEL) >= 0).map(item => {
           this.infoList.push({
-            uuid: i.uuid.replace(UUID.CUSTOM_INFO_LABEL, UUID.CUSTOM_INFO),
-            uuid_label: i.uuid,
-            label: '',
+            uuid: item.uuid.replace(UUID.CUSTOM_INFO_LABEL, UUID.CUSTOM_INFO),
+            uuid_label: item.uuid,
+            label: '-',
             value: ''
           })
-          this.readInfoCharacteristic(i.uuid)
-          this.subscribeCharacteristic(i.uuid.replace(UUID.CUSTOM_INFO_LABEL, UUID.CUSTOM_INFO))
         })
-        this.characteristics.filter(i => i.uuid.indexOf(UUID.CUSTOM_COMMAND_LABEL) >= 0).map(i => {
+        for (let i = 0; i < this.infoList.length; i++) {
+          if (this.infoList[i].preset) continue
+          await this.readInfoCharacteristic(this.infoList[i].uuid_label)
+          await this.subscribeCharacteristic(this.infoList[i].uuid)
+        }
+        this.characteristicsList.filter(i => i.uuid.indexOf(UUID.CUSTOM_COMMAND_LABEL) >= 0).map(item => {
           this.commandList.push({
-            uuid: i.uuid,
+            uuid: item.uuid,
             label: '...'
           })
-          this.readCommandLabel(i.uuid)
         })
+        for (let i = 0; i < this.commandList.length; i++) {
+          await this.readCommandLabel(this.commandList[i].uuid)
+        }
       }
     }
   }
@@ -308,15 +363,6 @@ export default {
       content: ' ';
       display: block;
       clear: both;
-    }
-  }
-  @media screen and (min-width: 900px) {
-    .panel-container {
-      display: flex;
-      justify-content: space-between;
-    }
-    .panel{
-      margin-right: 10px;
     }
   }
   .connect-panel{
@@ -370,5 +416,26 @@ export default {
     background-color: #333333;
     color: #e4edff;
     padding: 6px 10px;
+  }
+  .copyright{
+    width: 100%;
+    color: white;
+    padding: 20px 0;
+    a{
+      color: white;
+    }
+  }
+  @media screen and (min-width: 900px) {
+    .panel-container {
+      display: flex;
+      justify-content: space-between;
+    }
+    .panel{
+      margin-right: 10px;
+    }
+    .copyright{
+      position: fixed;
+      bottom: 10px;
+    }
   }
 </style>

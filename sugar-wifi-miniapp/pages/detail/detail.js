@@ -149,10 +149,10 @@ const page = Page({
       subscribeWifiName(deviceId)
       subscribeIpAddress(deviceId)
       subscribeNotifyMassage(deviceId)
-      if (res.characteristics) {
+      if (res.characteristicsList) {
         let customInfo = []
         let customCommands = []
-        res.characteristics.map(item => {
+        res.characteristicsList.map(item => {
           if (item.uuid.indexOf(UUID.CUSTOM_INFO_LABEL) > 0) {
             customInfo.push(
               {

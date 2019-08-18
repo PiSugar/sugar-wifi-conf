@@ -22,7 +22,7 @@ let BlenoPrimaryService = bleno.PrimaryService
 function wifiConfService() {
   wifiConfService.super_.call(this, {
     uuid: UUID.SERVICE_ID,
-    characteristics: [
+    characteristicsList: [
       new ServiceNameCharacteristic(),
       new DeviceModelCharacteristic(),
       new WifiNameCharacteristic(),
