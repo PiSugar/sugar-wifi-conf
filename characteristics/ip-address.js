@@ -18,17 +18,12 @@ IpAddressCharacteristic.prototype.onSubscribe = function(maxValueSize, updateVal
   console.log('IpAddressCharacteristic subscribe')
   this.ip = getIPAddress()
   updateValueCallback(new Buffer(this.ip))
-  setTimeout(() => {
-    updateValueCallback(new Buffer(this.ip))
-  }, 2000)
   this.changeInterval = setInterval(function() {
-    let newIp = getIPAddress()
-    if (newIp === this.ip) return
-    this.ip = newIp
+    this.ip = getIPAddress()
     let data = new Buffer(isString(this.ip) ? this.ip : '--')
     console.log('IpAddressCharacteristic update value: ' + this.ip)
     updateValueCallback(data)
-  }.bind(this), 1000)
+  }.bind(this), 5000)
 }
 
 IpAddressCharacteristic.prototype.onUnsubscribe = function() {
