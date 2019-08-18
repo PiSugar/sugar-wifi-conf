@@ -10,7 +10,7 @@
 
 小程序源代码详见sugar-wifi-miniapp文件夹。
 
-你也可以使用web蓝牙来连接，请确保你的设备和浏览器支持web-bluetooth api. (已在MacOS和Android的chrome浏览器上测试，iOS目前暂不支持web蓝牙) 使用chrome打开[web蓝牙页面](https://www.pisugar.com/sugar-wifi-conf)进行连接。源码详见web-bluetooth-client文件夹。
+你也可以使用web蓝牙来连接，请确保你的设备和浏览器支持web-bluetooth api. (已在MacOS和Android的chrome浏览器上测试，iOS可使用[WebBLE](https://apps.apple.com/us/app/webble/id1193531073)浏览器) 使用chrome打开[web蓝牙页面](https://www.pisugar.com/sugar-wifi-conf)进行连接。源码详见web-bluetooth-client文件夹。
 
 ### 快速安装
 ```
