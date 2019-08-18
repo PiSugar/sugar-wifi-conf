@@ -2,7 +2,6 @@ let util = require('util')
 let bleno = require('bleno')
 let UUID = require('./sugar-uuid')
 let config = require('./config')
-const execSync = require('child_process').execSync
 
 let ServiceNameCharacteristic = require('./characteristics/service-name')
 let DeviceModelCharacteristic = require('./characteristics/device-model')
@@ -22,7 +21,7 @@ let BlenoPrimaryService = bleno.PrimaryService
 function wifiConfService() {
   wifiConfService.super_.call(this, {
     uuid: UUID.SERVICE_ID,
-    characteristicsList: [
+    characteristics: [
       new ServiceNameCharacteristic(),
       new DeviceModelCharacteristic(),
       new WifiNameCharacteristic(),

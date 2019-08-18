@@ -21,9 +21,10 @@ try {
   customArray = result.items || result.info
   console.log('Custom Info Characteristics')
   console.log(customArray)
-  customArray.map(function (item) {
+  customArray.map(function (item, index) {
 
-    let uuidEnd = guid4()
+    let uuidEnd = guid4(index)
+    console.log(UUID.CUSTOM_INFO_LABEL + uuidEnd)
 
     let labelCharacteristic = function() {
       labelCharacteristic.super_.call(this, {
@@ -89,15 +90,30 @@ try {
     characteristicArray.push(item.valueChar)
     return item
   })
+  let count = customArray.length
+  let InfoCountCharacteristic = function() {
+    InfoCountCharacteristic.super_.call(this, {
+      uuid: UUID.CUSTOM_INFO_COUNT,
+      properties: ['read'],
+      value: new Buffer(count.toString()),
+      descriptors: [
+        new BlenoDescriptor({
+          uuid: UUID.CUSTOM_INFO_COUNT,
+          value: 'Custom Info Count'
+        })
+      ]
+    })
+  }
+  util.inherits(InfoCountCharacteristic, BlenoCharacteristic)
+  characteristicArray.push(new InfoCountCharacteristic())
 } catch (e) {
   console.log(e.toString())
 }
 
-function guid4() {
-  return 'xxxx'.replace(/[xy]/g, function(c) {
-    var r = Math.random()*16|0, v = c == 'x' ? r : (r&0x3|0x8)
-    return v.toString(16)
-  })
+function guid4(index) {
+  let string = (index + 1).toString(16)
+  string = '0'.repeat(4 - string.length) + string
+  return string
 }
 
 module.exports = characteristicArray

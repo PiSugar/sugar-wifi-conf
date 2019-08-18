@@ -98,7 +98,8 @@ export default {
       commandOutputShouldRefresh: false,
       loading: null,
       charLength: -1,
-      isAndroid: navigator.userAgent.indexOf('Android') > -1 || navigator.userAgent.indexOf('Adr') > -1
+      isAndroid: navigator.userAgent.indexOf('Android') > -1 || navigator.userAgent.indexOf('Adr') > -1,
+      isIphone: navigator.userAgent.indexOf('iPhone') > -1 || navigator.userAgent.indexOf('iphone') > -1
     }
   },
   mounted () {
@@ -158,7 +159,15 @@ export default {
             }
             this.commandOutput = output
           } else {
-            this.infoList.find(i => i.uuid === uuid).value = this.ab2str(event.target.value.buffer)
+            let value = this.ab2str(event.target.value.buffer)
+            let char = this.infoList.find(i => i.uuid === uuid)
+            let char_label = this.infoList.find(i => i.uuid_label === uuid)
+            if (char) {
+              char.value = value
+            }
+            if (char_label) {
+              char_label.label = value
+            }
           }
         })
         await this.getCharacteristic(uuid).startNotifications()
@@ -175,7 +184,8 @@ export default {
             let char_label = this.infoList.find(i => i.uuid_label === uuid)
             if (char) {
               char.value = value
-            } else {
+            }
+            if (char_label) {
               char_label.label = value
             }
             resolve()
@@ -285,10 +295,6 @@ export default {
           label: 'IP Address',
           value: '...'
         })
-      }
-    },
-    async characteristicsList (val, oldVal) {
-      if (val.length > 0) {
         await this.subscribeCharacteristic(UUID.WIFI_NAME)
         await this.subscribeCharacteristic(UUID.IP_ADDRESS)
         await this.readInfoCharacteristic(UUID.DEVICE_MODEL)
