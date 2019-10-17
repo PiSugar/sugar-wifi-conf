@@ -1,6 +1,6 @@
 # web-bluetooth-client
 
-> A web program to connect Pi via BLE, based on web bluetooth api.
+> A Vue.js project
 
 ## Build Setup
 
