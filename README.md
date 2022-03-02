@@ -133,9 +133,9 @@ Service uuid: FD2B-4448-AA0F-4A15-A62F-EB0BE77A0000
 
 | charateristic | format |
 | - | :- |
-| INPUT_SEP | format: key&%&ssid&%&password%#% (subcontract in 20 btyes) e.g. pisugar&%&home_wifi&%&12345678%#% |
-| CUSTOM_COMMAND_INPUT | format: key&%&last_4_digit_uuid%#% (subcontract in 20 btyes) e.g. pisugar&%&1234%#% will execute the custom command with its label uuid end in "1234" |
-| CUSTOM_COMMAND_NOTIFY | subcontract in 20 btyes, ended in "%#%" |
+| INPUT_SEP | format: key%&%ssid%&%password&#& (subcontract in 20 btyes) e.g. pisugar%&%home_wifi%&%12345678&#& |
+| CUSTOM_COMMAND_INPUT | format: key%&%last_4_digit_uuid&#& (subcontract in 20 btyes) e.g. pisugar%&%1234&#& will execute the custom command with its label uuid end in "1234" |
+| CUSTOM_COMMAND_NOTIFY | subcontract in 20 btyes, ended in "&#&" |
 | CUSTOM_INFO_LABEL | a custom info label (FD2BCCCA1234) will have a corresponding value (FD2BCCCB1234) |
 | CUSTOM_COMMAND_LABEL | all custom commands with be broadcast in uuid "FD2BCCCCXXXX" |
 
