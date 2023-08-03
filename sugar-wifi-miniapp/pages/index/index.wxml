@@ -1,9 +1,14 @@
-<!--index.wxml-->
+<!-- index.wxml -->
 <view class="container">
-  <view wx:if="{{piList.length==0}}" class="state">没有发现能吃的树莓派,请下拉刷新...</view>
+  <view wx:if="{{piList.length==0}}" class="empty-state">
+    <view class="home">
+      <image class="home-img" src="../../image/sugar-wifi-home.jpg"></image>
+    </view>
+    周围没有发现可连接树莓派设备，请下拉刷新...
+  </view>
   <view wx:if="{{piList.length!=0}}" class="state">发现{{piList.length}}个树莓派</view>
   <view class="pi-list">
-    <view class="pi-item" wx:for="{{piList}}" wx:key="item.deviceId" bindtap="showDetail" data-id="{{item.deviceId}}" data-name="{{item.name}}">
+    <view class="pi-item" wx:for="{{piList}}" wx:key="deviceId" bindtap="showDetail" data-id="{{item.deviceId}}" data-name="{{item.name}}">
       <text class="pi-name">{{item.name}}</text>
       <text class="pi-id">{{item.deviceId}}</text>
     </view>
@@ -11,7 +16,8 @@
   <view class="logo">
     <image class="logo-img" src="../../image/pisugar.png"></image>
     <view class="slogan" bindtap="openManual">
-      <text>树莓派端需安装蓝牙服务，详见</text><text class="manual">使用说明</text>
+      <text>树莓派端需安装蓝牙服务，详见</text>
+      <text class="manual">使用说明</text>
     </view>
   </view>
 </view>

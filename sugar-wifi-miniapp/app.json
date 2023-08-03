@@ -10,5 +10,10 @@
     "navigationBarTitleText": "PiSugar",
     "navigationBarTextStyle": "black",
     "enablePullDownRefresh": true
+  },
+  "permission": {
+    "scope.userLocation": {
+      "desc": "你的位置信息将用于小程序搜索附近蓝牙设备"
+    }
   }
 }
