@@ -1,7 +1,7 @@
 const execSync = require('child_process').execSync
 const exec = require('child_process').exec
 let util = require('util')
-let bleno = require('bleno')
+let bleno = require('@abandonware/bleno')
 let UUID = require('../sugar-uuid')
 let config = require('../config')
 const fs = require('fs')
@@ -19,52 +19,46 @@ let argv = process.argv
 if (argv.length > 2) config.key = process.argv[2]
 if (argv.length > 3) jsonPath = process.argv[3]
 
-
 try {
-  let result = JSON.parse(fs.readFileSync(jsonPath))
-  customArray = result.commands
-  console.log('Custom Command Characteristics')
-  console.log(customArray)
+  if (jsonPath) {
+    let result = JSON.parse(fs.readFileSync(jsonPath))
+    customArray = result.commands
+    console.log('Custom Command Characteristics')
+    console.log(customArray)
+  }
   customArray.map(function (item, index) {
 
     let uuidEnd = guid4(index)
     console.log(UUID.CUSTOM_COMMAND_LABEL + uuidEnd)
 
-    let labelCharacteristic = function() {
-      labelCharacteristic.super_.call(this, {
-        uuid: UUID.CUSTOM_COMMAND_LABEL + uuidEnd,
-        properties: ['read'],
-        value: new Buffer(item.label),
-        descriptors: [
-          new BlenoDescriptor({
-            uuid: uuidEnd,
-            value: 'PiSugar Custom Command ' + item.label
-          })
-        ]
-      })
-    }
-    util.inherits(labelCharacteristic, BlenoCharacteristic)
-    item.labelChar = new labelCharacteristic()
+    item.labelChar = new BlenoCharacteristic({
+      uuid: UUID.CUSTOM_COMMAND_LABEL + uuidEnd,
+      properties: ['read'],
+      value: Buffer.from(item.label),
+      descriptors: [
+        new BlenoDescriptor({
+          uuid: uuidEnd,
+          value: 'PiSugar Custom Command ' + item.label
+        })
+      ]
+    })
+
     item.uuid = UUID.CUSTOM_COMMAND_LABEL + uuidEnd
     characteristicArray.push(item.labelChar)
     return item
   })
-  let count = customArray.length
-  let CommandCountCharacteristic = function() {
-    CommandCountCharacteristic.super_.call(this, {
+
+  characteristicArray.push(new BlenoCharacteristic({
       uuid: UUID.CUSTOM_COMMAND_COUNT,
       properties: ['read'],
-      value: new Buffer(count.toString()),
+      value: Buffer.from(`${customArray.length}`),
       descriptors: [
         new BlenoDescriptor({
           uuid: UUID.CUSTOM_COMMAND_COUNT,
           value: 'Custom Command Count'
         })
       ]
-    })
-  }
-  util.inherits(CommandCountCharacteristic, BlenoCharacteristic)
-  characteristicArray.push(new CommandCountCharacteristic())
+    }))
 } catch (e) {
   console.log(e)
 }
@@ -88,72 +82,67 @@ setInterval(function () {
   }
 }, 1000)
 
-let InputCharacteristicSep = function() {
-  InputCharacteristicSep.super_.call(this, {
-    uuid: UUID.CUSTOM_COMMAND_INPUT,
-    properties: ['write', 'writeWithoutResponse']
-  })
-}
-
-util.inherits(InputCharacteristicSep, BlenoCharacteristic)
-
-InputCharacteristicSep.prototype.onWriteRequest = function(data, offset, withoutResponse, callback) {
-  console.log('InputCharacteristicSep write request: ' + data.toString() + ' ' + offset + ' ' + withoutResponse)
-  separateInputString += data.toString()
-  let isLast = separateInputString.indexOf(endTag) >= 0
-  let commandToExecute
-  let commandUuid
-  if (isLast) {
-    separateInputString = separateInputString.replace(endTag, '')
-    let inputArray = separateInputString.split(concatTag)
-    lastChangeTime = new Date().getTime()
-    separateInputStringCopy = ''
-    separateInputString = ''
-    if (inputArray && inputArray.length < 2) {
-      console.log('Invalid syntax.')
-      setMessage('Invalid syntax.')
-      callback(this.RESULT_SUCCESS)
-      return
+const InputCharacteristicSep = new BlenoCharacteristic({
+  uuid: UUID.CUSTOM_COMMAND_INPUT,
+  properties: ['write', 'writeWithoutResponse'],
+  onWriteRequest: function(data, offset, withoutResponse, callback) {
+    console.log('InputCharacteristicSep write request: ' + data.toString() + ' ' + offset + ' ' + withoutResponse)
+    separateInputString += data.toString()
+    let isLast = separateInputString.indexOf(endTag) >= 0
+    let commandToExecute
+    let commandUuid
+    if (isLast) {
+      separateInputString = separateInputString.replace(endTag, '')
+      let inputArray = separateInputString.split(concatTag)
+      lastChangeTime = new Date().getTime()
+      separateInputStringCopy = ''
+      separateInputString = ''
+      if (inputArray && inputArray.length < 2) {
+        console.log('Invalid syntax.')
+        setMessage('Invalid syntax.')
+        callback(this.RESULT_SUCCESS)
+        return
+      }
+      if (inputArray[0] !== config.key) {
+        console.log('Invalid key.')
+        setMessage('Invalid key.')
+        callback(this.RESULT_SUCCESS)
+        return
+      }
+      try {
+        commandUuid = inputArray[1].split('-').splice(-1)[0].toUpperCase()
+      } catch (e) {
+        console.log('Invalid UUID.')
+        setMessage('Invalid UUID.')
+        callback(this.RESULT_SUCCESS)
+        return
+      }
+      for (let i in customArray) {
+        if (customArray[i].uuid.toUpperCase() === commandUuid || customArray[i].uuid.toUpperCase().substr(8) === commandUuid) {
+          commandToExecute = customArray[i].command
+          break;
+        }
+      }
     }
-    if (inputArray[0] !== config.key) {
-      console.log('Invalid key.')
-      setMessage('Invalid key.')
-      callback(this.RESULT_SUCCESS)
-      return
-    }
-    try {
-      commandUuid = inputArray[1].split('-').splice(-1)[0].toUpperCase()
-    } catch (e) {
-      console.log('Invalid UUID.')
-      setMessage('Invalid UUID.')
-      callback(this.RESULT_SUCCESS)
-      return
-    }
-    for (let i in customArray) {
-      if (customArray[i].uuid.toUpperCase() === commandUuid || customArray[i].uuid.toUpperCase().substr(8) === commandUuid) {
-        commandToExecute = customArray[i].command
-        break;
+    callback(this.RESULT_SUCCESS)
+    if (isLast) {
+      if (commandToExecute) {
+        exec(commandToExecute, (error, stdout, stderr) => {
+          if (error) {
+            response(`exec error: ${error}`)
+            return
+          }
+          response(stdout)
+        })
+        response('exec done.\n')
+      } else {
+        response("Command not found.")
       }
     }
   }
-  callback(this.RESULT_SUCCESS)
-  if (isLast) {
-    if (commandToExecute) {
-      exec(commandToExecute, (error, stdout, stderr) => {
-        if (error) {
-          response(`exec error: ${error}`)
-          return
-        }
-        response(stdout)
-      })
-      response('exec done.\n')
-    } else {
-      response("Command not found.")
-    }
-  }
-}
+})
 
-characteristicArray.push(new InputCharacteristicSep())
+characteristicArray.push(InputCharacteristicSep)
 
 
 // NotifyMassage
@@ -161,42 +150,34 @@ characteristicArray.push(new InputCharacteristicSep())
 let message = ''
 let messageTimestamp = 0
 
-let NotifyMassageCharacteristic = function() {
-  NotifyMassageCharacteristic.super_.call(this, {
-    uuid: UUID.CUSTOM_COMMAND_NOTIFY,
-    properties: ['notify']
-  })
-}
-
-util.inherits(NotifyMassageCharacteristic, BlenoCharacteristic)
-
-NotifyMassageCharacteristic.prototype.onSubscribe = function(maxValueSize, updateValueCallback) {
-  console.log('Notify Custom Command subscribe')
-  this.timeStamp = messageTimestamp
-  this.changeInterval = setInterval(function() {
-    if (this.timeStamp === messageTimestamp) return
-    let data = new Buffer(message)
-    console.log('Notify Custom Command update value: ' + message)
-    updateValueCallback(data)
+const NotifyMassageCharacteristic = new BlenoCharacteristic({
+  uuid: UUID.CUSTOM_COMMAND_NOTIFY,
+  properties: ['notify'],
+  onSubscribe: function(maxValueSize, updateValueCallback) {
+    console.log('Notify Custom Command subscribe')
     this.timeStamp = messageTimestamp
-  }.bind(this), 100)
-}
-
-NotifyMassageCharacteristic.prototype.onUnsubscribe = function() {
-  console.log('Notify Custom Command unsubscribe')
-
-  if (this.changeInterval) {
-    clearInterval(this.changeInterval)
-    this.changeInterval = null
+    this.changeInterval = setInterval(function() {
+      if (this.timeStamp === messageTimestamp) return
+      let data = Buffer.from(message)
+      console.log('Notify Custom Command update value: ' + message)
+      updateValueCallback(data)
+      this.timeStamp = messageTimestamp
+    }.bind(this), 100)
+  },
+  onUnsubscribe: function() {
+    console.log('Notify Custom Command unsubscribe')
+  
+    if (this.changeInterval) {
+      clearInterval(this.changeInterval)
+      this.changeInterval = null
+    }
+  },
+  onNotify: function() {
+    console.log('Notify Custom Command on notify')
   }
-}
+})
 
-NotifyMassageCharacteristic.prototype.onNotify = function() {
-  console.log('Notify Custom Command on notify')
-}
-
-characteristicArray.push(new NotifyMassageCharacteristic())
-
+characteristicArray.push(NotifyMassageCharacteristic)
 
 async function response (string) {
   message = ''

@@ -1,5 +1,5 @@
 let util = require('util')
-let bleno = require('bleno')
+let bleno = require('@abandonware/bleno')
 let UUID = require('./sugar-uuid')
 let config = require('./config')
 
@@ -15,27 +15,6 @@ let CustomCommandCharacteristics = require('./characteristics/custom-command')
 
 let BlenoPrimaryService = bleno.PrimaryService
 
-// console.log('check bluetooth')
-// console.log(execSync('dmesg |grep -i Bluetooth').toString())
-
-function wifiConfService() {
-  wifiConfService.super_.call(this, {
-    uuid: UUID.SERVICE_ID,
-    characteristics: [
-      new ServiceNameCharacteristic(),
-      new DeviceModelCharacteristic(),
-      new WifiNameCharacteristic(),
-      new IpAddressCharacteristic(),
-      new InputCharacteristic(),
-      new InputCharacteristicSep(),
-      new NotifyMassageCharacteristic(),
-      ...CustomCharacteristics,
-      ...CustomCommandCharacteristics
-    ]
-  })
-}
-
-
 function wait (sec) {
   return new Promise(function (resolve, reject) {
     setTimeout(function () {
@@ -50,7 +29,6 @@ async function startBLE () {
   // console.log('check bluetooth')
   // console.log(execSync('dmesg |grep -i Bluetooth').toString())
   console.log('Bleno starting...')
-  util.inherits(wifiConfService, BlenoPrimaryService)
 
   bleno.on('stateChange', function(state) {
     console.log('on -> stateChange: ' + state + ', address = ' + bleno.address)
@@ -84,7 +62,20 @@ async function startBLE () {
     console.log('on -> advertisingStart: ' + (error ? 'error ' + error : 'success'))
     if (!error) {
       bleno.setServices([
-        new wifiConfService()
+        new BlenoPrimaryService({
+          uuid: UUID.SERVICE_ID,
+          characteristics: [
+            ServiceNameCharacteristic,
+            DeviceModelCharacteristic,
+            WifiNameCharacteristic,
+            IpAddressCharacteristic,
+            InputCharacteristic,
+            InputCharacteristicSep,
+            NotifyMassageCharacteristic,
+            ...CustomCharacteristics,
+            ...CustomCommandCharacteristics
+          ]
+        })
       ])
     }
   })
