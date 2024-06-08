@@ -1,7 +1,9 @@
-name: build-web
+name: build-and-release
 
 on:
-  workflow_call:
+  push:
+    tags:
+      - "v*"
 
 jobs:
   build-and-release:
