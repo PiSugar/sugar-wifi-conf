@@ -1,43 +1,9 @@
 const execSync = require('child_process').execSync
 let util = require('util')
-let bleno = require('bleno')
+let bleno = require('@abandonware/bleno')
 let UUID = require('../sugar-uuid')
 
 let BlenoCharacteristic = bleno.Characteristic
-
-let WifiNameCharacteristic = function() {
-  WifiNameCharacteristic.super_.call(this, {
-    uuid: UUID.WIFI_NAME,
-    properties: ['notify']
-  })
-}
-
-util.inherits(WifiNameCharacteristic, BlenoCharacteristic)
-
-WifiNameCharacteristic.prototype.onSubscribe = function(maxValueSize, updateValueCallback) {
-  console.log('WifiNameCharacteristic subscribe')
-  this.wifiName = getWifiName()
-  updateValueCallback(new Buffer(this.wifiName))
-  this.changeInterval = setInterval(function() {
-    this.wifiName = getWifiName()
-    let data = new Buffer(this.wifiName)
-    console.log('WifiNameCharacteristic update value: ' + this.wifiName)
-    updateValueCallback(data)
-  }.bind(this), 5000)
-}
-
-WifiNameCharacteristic.prototype.onUnsubscribe = function() {
-  console.log('WifiNameCharacteristic unsubscribe')
-
-  if (this.changeInterval) {
-    clearInterval(this.changeInterval)
-    this.changeInterval = null
-  }
-}
-
-WifiNameCharacteristic.prototype.onNotify = function() {
-  console.log('WifiNameCharacteristic on notify')
-}
 
 function getWifiName() {
   const reg = /ESSID:"([^"]*)"/
@@ -53,4 +19,29 @@ function getWifiName() {
   return match.length > 1 ? match[1] : 'Not available'
 }
 
-module.exports = WifiNameCharacteristic
+module.exports = new BlenoCharacteristic({
+  uuid: UUID.WIFI_NAME,
+  properties: ['notify'],
+  onSubscribe: function(maxValueSize, updateValueCallback) {
+    console.log('WifiNameCharacteristic subscribe')
+    this.wifiName = getWifiName()
+    updateValueCallback(Buffer.from(this.wifiName))
+    this.changeInterval = setInterval(function() {
+      this.wifiName = getWifiName()
+      let data = Buffer.from(this.wifiName)
+      console.log('WifiNameCharacteristic update value: ' + this.wifiName)
+      updateValueCallback(data)
+    }.bind(this), 5000)
+  },
+  onUnsubscribe: function() {
+    console.log('WifiNameCharacteristic unsubscribe')
+  
+    if (this.changeInterval) {
+      clearInterval(this.changeInterval)
+      this.changeInterval = null
+    }
+  },
+  onNotify: function() {
+    console.log('WifiNameCharacteristic on notify')
+  }
+})

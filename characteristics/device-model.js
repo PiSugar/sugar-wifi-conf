@@ -1,6 +1,6 @@
 const execSync = require('child_process').execSync
 let util = require('util')
-let bleno = require('bleno')
+let bleno = require('@abandonware/bleno')
 let UUID = require('../sugar-uuid')
 
 let BlenoCharacteristic = bleno.Characteristic
@@ -8,9 +8,8 @@ let BlenoDescriptor = bleno.Descriptor
 
 let modelBuffer = execSync('cat /proc/device-tree/model')
 
-let DeviceModelCharacteristic = function() {
-  DeviceModelCharacteristic.super_.call(this, {
-    uuid: UUID.DEVICE_MODEL,
+module.exports = new BlenoCharacteristic({
+  uuid: UUID.DEVICE_MODEL,
     properties: ['read'],
     value: modelBuffer,
     descriptors: [
@@ -19,8 +18,4 @@ let DeviceModelCharacteristic = function() {
         value: 'Raspberry Hardware Model'
       })
     ]
-  })
-}
-util.inherits(DeviceModelCharacteristic, BlenoCharacteristic)
-
-module.exports = DeviceModelCharacteristic
+})

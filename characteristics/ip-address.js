@@ -1,42 +1,9 @@
 let util = require('util')
-let bleno = require('bleno')
+let bleno = require('@abandonware/bleno')
 let UUID = require('../sugar-uuid')
 const os = require('os')
 
 let BlenoCharacteristic = bleno.Characteristic
-
-let IpAddressCharacteristic = function() {
-  IpAddressCharacteristic.super_.call(this, {
-    uuid: UUID.IP_ADDRESS,
-    properties: ['notify']
-  })
-}
-
-util.inherits(IpAddressCharacteristic, BlenoCharacteristic)
-
-IpAddressCharacteristic.prototype.onSubscribe = function(maxValueSize, updateValueCallback) {
-  console.log('IpAddressCharacteristic subscribe')
-  this.ip = getIPAddress()
-  updateValueCallback(new Buffer(this.ip))
-  this.changeInterval = setInterval(function() {
-    this.ip = getIPAddress()
-    let data = new Buffer(isString(this.ip) ? this.ip : '--')
-    console.log('IpAddressCharacteristic update value: ' + this.ip)
-    updateValueCallback(data)
-  }.bind(this), 5000)
-}
-
-IpAddressCharacteristic.prototype.onUnsubscribe = function() {
-  console.log('IpAddressCharacteristic unsubscribe')
-  if (this.changeInterval) {
-    clearInterval(this.changeInterval)
-    this.changeInterval = null
-  }
-}
-
-IpAddressCharacteristic.prototype.onNotify = function() {
-  console.log('IpAddressCharacteristic on notify')
-}
 
 function getIPAddress() {
   let interfaces = os.networkInterfaces()
@@ -58,4 +25,28 @@ function isString(str){
   return Object.prototype.toString.call(str) === "[object String]"
 }
 
-module.exports = IpAddressCharacteristic
+module.exports = new BlenoCharacteristic({
+  uuid: UUID.IP_ADDRESS,
+  properties: ['notify'],
+  onSubscribe: function(maxValueSize, updateValueCallback) {
+    console.log('IpAddressCharacteristic subscribe')
+    this.ip = getIPAddress()
+    updateValueCallback(Buffer.from(this.ip))
+    this.changeInterval = setInterval(function() {
+      this.ip = getIPAddress()
+      let data = Buffer.from(isString(this.ip) ? this.ip : '--')
+      console.log('IpAddressCharacteristic update value: ' + this.ip)
+      updateValueCallback(data)
+    }.bind(this), 5000)
+  },
+  onUnsubscribe: function() {
+    console.log('IpAddressCharacteristic unsubscribe')
+    if (this.changeInterval) {
+      clearInterval(this.changeInterval)
+      this.changeInterval = null
+    }
+  },
+  onNotify: function() {
+    console.log('IpAddressCharacteristic on notify')
+  }
+})

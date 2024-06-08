@@ -1,6 +1,6 @@
 const execSync = require('child_process').execSync
 let util = require('util')
-let bleno = require('bleno')
+let bleno = require('@abandonware/bleno')
 let UUID = require('../sugar-uuid')
 let config = require('../config')
 const fs = require('fs')
@@ -17,36 +17,30 @@ let message = ''
 let messageTimestamp = 0
 
 // Input
-
-let InputCharacteristic = function() {
-  InputCharacteristic.super_.call(this, {
-    uuid: UUID.INPUT,
-    properties: ['write', 'writeWithoutResponse']
-  })
-}
-
-util.inherits(InputCharacteristic, BlenoCharacteristic)
-
-InputCharacteristic.prototype.onWriteRequest = function(data, offset, withoutResponse, callback) {
-  console.log('InputCharacteristic write request: ' + data.toString() + ' ' + offset + ' ' + withoutResponse)
-  let inputArray = data.toString().split(concatTag)
-  if (inputArray && inputArray.length < 3) {
-    console.log('Wrong input syntax.')
-    setMessage('Wrong input syntax.')
+const InputCharacteristic = new BlenoCharacteristic({
+  uuid: UUID.INPUT,
+  properties: ['write', 'writeWithoutResponse'],
+  onWriteRequest: function(data, offset, withoutResponse, callback) {
+    console.log('InputCharacteristic write request: ' + data.toString() + ' ' + offset + ' ' + withoutResponse)
+    let inputArray = data.toString().split(concatTag)
+    if (inputArray && inputArray.length < 3) {
+      console.log('Wrong input syntax.')
+      setMessage('Wrong input syntax.')
+      callback(this.RESULT_SUCCESS)
+      return
+    }
+    if (inputArray[0] !== config.key){
+      console.log('Wrong input key.')
+      setMessage('Wrong input key.')
+      callback(this.RESULT_SUCCESS)
+      return
+    }
+    let ssid = inputArray[1]
+    let password = inputArray[2]
+    let result = setWifi(ssid, password)
     callback(this.RESULT_SUCCESS)
-    return
-  }
-  if (inputArray[0] !== config.key){
-    console.log('Wrong input key.')
-    setMessage('Wrong input key.')
-    callback(this.RESULT_SUCCESS)
-    return
-  }
-  let ssid = inputArray[1]
-  let password = inputArray[2]
-  let result = setWifi(ssid, password)
-  callback(this.RESULT_SUCCESS)
-}
+  },
+})
 
 
 // Input android
@@ -68,80 +62,68 @@ setInterval(function () {
   }
 }, 1000)
 
-let InputCharacteristicSep = function() {
-  InputCharacteristicSep.super_.call(this, {
-    uuid: UUID.INPUT_SEP,
-    properties: ['write', 'writeWithoutResponse']
-  })
-}
-
-util.inherits(InputCharacteristicSep, BlenoCharacteristic)
-
-InputCharacteristicSep.prototype.onWriteRequest = function(data, offset, withoutResponse, callback) {
-  console.log('InputCharacteristicSep write request: ' + data.toString() + ' ' + offset + ' ' + withoutResponse)
-  separateInputString += data.toString()
-  let isLast = separateInputString.indexOf(endTag) >= 0
-  if (isLast) {
-    separateInputString = separateInputString.replace(endTag, '')
-    let inputArray = separateInputString.split(concatTag)
-    lastChangeTime = new Date().getTime()
-    separateInputStringCopy = ''
-    separateInputString = ''
-    if (inputArray && inputArray.length < 3) {
-      console.log('Invalid syntax.')
-      setMessage('Invalid syntax.')
-      callback(this.RESULT_SUCCESS)
-      return
+const InputCharacteristicSep = new BlenoCharacteristic({
+  uuid: UUID.INPUT_SEP,
+  properties: ['write', 'writeWithoutResponse'],
+  onWriteRequest: function(data, offset, withoutResponse, callback) {
+    console.log('InputCharacteristicSep write request: ' + data.toString() + ' ' + offset + ' ' + withoutResponse)
+    separateInputString += data.toString()
+    let isLast = separateInputString.indexOf(endTag) >= 0
+    if (isLast) {
+      separateInputString = separateInputString.replace(endTag, '')
+      let inputArray = separateInputString.split(concatTag)
+      lastChangeTime = new Date().getTime()
+      separateInputStringCopy = ''
+      separateInputString = ''
+      if (inputArray && inputArray.length < 3) {
+        console.log('Invalid syntax.')
+        setMessage('Invalid syntax.')
+        callback(this.RESULT_SUCCESS)
+        return
+      }
+      if (inputArray[0] !== config.key){
+        console.log('Invalid key.')
+        setMessage('Invalid key.')
+        callback(this.RESULT_SUCCESS)
+        return
+      }
+      let ssid = inputArray[1]
+      let password = inputArray[2]
+      let result = setWifi(ssid, password)
     }
-    if (inputArray[0] !== config.key){
-      console.log('Invalid key.')
-      setMessage('Invalid key.')
-      callback(this.RESULT_SUCCESS)
-      return
-    }
-    let ssid = inputArray[1]
-    let password = inputArray[2]
-    let result = setWifi(ssid, password)
-  }
-  callback(this.RESULT_SUCCESS)
-}
+    callback(this.RESULT_SUCCESS)
+  },
+})
 
 
 // NotifyMassage
 
-let NotifyMassageCharacteristic = function() {
-  NotifyMassageCharacteristic.super_.call(this, {
-    uuid: UUID.NOTIFY_MESSAGE,
-    properties: ['notify']
-  })
-}
-
-util.inherits(NotifyMassageCharacteristic, BlenoCharacteristic)
-
-NotifyMassageCharacteristic.prototype.onSubscribe = function(maxValueSize, updateValueCallback) {
-  console.log('NotifyMassageCharacteristic subscribe')
-  this.timeStamp = messageTimestamp
-  this.changeInterval = setInterval(function() {
-    if (this.timeStamp === messageTimestamp) return
-    let data = new Buffer(message)
-    console.log('NotifyMassageCharacteristic update value: ' + message)
-    updateValueCallback(data)
+const NotifyMassageCharacteristic = new BlenoCharacteristic({
+  uuid: UUID.NOTIFY_MESSAGE,
+  properties: ['notify'],
+  onSubscribe: function(maxValueSize, updateValueCallback) {
+    console.log('NotifyMassageCharacteristic subscribe')
     this.timeStamp = messageTimestamp
-  }.bind(this), 100)
-}
-
-NotifyMassageCharacteristic.prototype.onUnsubscribe = function() {
-  console.log('NotifyMassageCharacteristic unsubscribe')
-
-  if (this.changeInterval) {
-    clearInterval(this.changeInterval)
-    this.changeInterval = null
+    this.changeInterval = setInterval(function() {
+      if (this.timeStamp === messageTimestamp) return
+      let data = Buffer.from(message)
+      console.log('NotifyMassageCharacteristic update value: ' + message)
+      updateValueCallback(data)
+      this.timeStamp = messageTimestamp
+    }.bind(this), 100)
+  },
+  onUnsubscribe: function() {
+    console.log('NotifyMassageCharacteristic unsubscribe')
+  
+    if (this.changeInterval) {
+      clearInterval(this.changeInterval)
+      this.changeInterval = null
+    }
+  },
+  onNotify: function() {
+    console.log('NotifyMassageCharacteristic on notify')
   }
-}
-
-NotifyMassageCharacteristic.prototype.onNotify = function() {
-  console.log('NotifyMassageCharacteristic on notify')
-}
+})
 
 async function setWifi (input_ssid, input_password) {
   let data = fs.readFileSync(conf_path, 'utf8')
