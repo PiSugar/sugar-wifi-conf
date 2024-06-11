@@ -27,6 +27,7 @@ jobs:
       - name: Setup Python 2.7
         uses: actions/setup-python@v4
         with:
+          architecture: x64
           python-version: "2.7"
 
       - name: install deps
