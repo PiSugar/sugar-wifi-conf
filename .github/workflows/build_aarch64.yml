@@ -24,11 +24,11 @@ jobs:
       - name: install node pkg
         run: npm i pkg -g
       
-      - name: Setup Python 2.7
-        uses: actions/setup-python@v4
-        with:
-          architecture: x64
-          python-version: "2.7"
+      # - name: Setup Python 2.7
+      #   uses: actions/setup-python@v4
+      #   with:
+      #     architecture: x64
+      #     python-version: "2.7"
 
       - name: install deps
         run: yarn
