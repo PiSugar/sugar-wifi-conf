@@ -7,7 +7,7 @@ on:
 
 jobs:
   build-and-release:
-    runs-on: ubuntu-latest
+    runs-on: rpi5
 
     steps:
       # Checkout
@@ -35,7 +35,7 @@ jobs:
         run: yarn
 
       - name: build project
-        run: npx pkg -t node18-linux-armv7 -o ./build/sugar-wifi-conf index.js
+        run: npx pkg -t node18-linux-arm64 -o ./build/sugar-wifi-conf index.js
 
       # Upload artifact
       - name: Upload artifacts
