@@ -1,4 +1,5 @@
 const execSync = require('child_process').execSync
+const exec = require('child_process').exec
 let util = require('util')
 let bleno = require('@abandonware/bleno')
 let UUID = require('../sugar-uuid')
@@ -150,11 +151,11 @@ const NotifyMassageCharacteristic = new BlenoCharacteristic({
 
 async function setWifi(input_ssid, input_password) {
   if (await checkWlan0Managed()) {
-    setMessage('Wlan0 is managed by NetworkManager.');
+    // setMessage('Wlan0 is managed by NetworkManager.');
     setWifiNm(input_ssid, input_password);
     return;
   } else {
-    setMessage('Wlan0 is not managed by NetworkManager. Setting up...');
+    // setMessage('Wlan0 is not managed by NetworkManager. Setting up...');
     setWifiWpa(input_ssid, input_password);
   }
 }
@@ -163,7 +164,9 @@ async function setWifiNm(input_ssid, input_password) {
   try {
     // delete existing connection
     await executeCommand(`nmcli connection delete id "${input_ssid}"`);
+  } catch {}
 
+  try {
     // add new connection
     console.log(`Adding and connecting to Wi-Fi SSID: ${input_ssid}`);
     const addCommand = `nmcli connection add type wifi ifname wlan0 con-name "${input_ssid}" ssid "${input_ssid}" wifi-sec.key-mgmt wpa-psk wifi-sec.psk "${input_password}"`;
