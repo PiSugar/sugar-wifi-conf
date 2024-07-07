@@ -1,0 +1,49 @@
+name: build
+
+on:
+  workflow_dispatch:
+
+jobs:
+  build-and-release:
+    runs-on: ubuntu-latest
+
+    steps:
+      # Checkout
+      - name: Checkout
+        uses: actions/checkout@v3
+
+      # Nodejs
+      - name: Setup Nodejs
+        uses: actions/setup-node@v3
+        with:
+          node-version: "18.x"
+
+      - name: install yarn
+        run: npm i yarn -g
+
+      - name: install node pkg
+        run: npm i pkg -g
+      
+      # - name: Setup Python 2.7
+      #   uses: actions/setup-python@v4
+      #   with:
+      #     architecture: x64
+      #     python-version: "2.7"
+
+      - name: install deps
+        run: yarn
+
+      - name: build project 64bit
+        run: npx pkg -t node18-linux-arm64 -o ./build/sugar-wifi-conf-arm64 index.js
+
+      - name: build project 32bit
+        run: npx pkg -t node18-linux-armv7 -o ./build/sugar-wifi-conf-armv7 index.js
+
+      # Upload artifact
+      - name: Upload artifacts
+        uses: actions/upload-artifact@v3
+        with:
+          name: sugar-wifi-conf
+          path: |
+            build
+          if-no-files-found: warn
