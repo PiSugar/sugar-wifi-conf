@@ -1,5 +1,5 @@
 #!/bin/bash
-NVM_URL="https://raw.githubusercontent.com/nvm-sh/nvm/v0.39.3/install.sh"
+NVM_URL="https://cdn.pisugar.com/PiSugar-wificonfig/script/install_nvm.sh"
 REPO_URL="https://github.com/PiSugar/sugar-wifi-conf.git"
 INSTALL_DIR="/opt/sugar-wifi-config"
 
@@ -97,4 +97,18 @@ npm i
 
 chmod +x $INSTALL_DIR/run.sh
 
-echo "Finished installing sugar-wifi-config."
+# /etc/rc.local
+echo "Adding startup command to /etc/rc.local..."
+mkdir -p $INSTALL_DIR/build
+cp custom_config.json $INSTALL_DIR/build/custom_config.json
+
+# Check if /etc/rc.local exists and add the startup command if it does
+# sudo sed -i "/exit 0/i sudo bash $INSTALL_DIR/run.sh pisugar $INSTALL_DIR/build/custom_config.json&" /etc/rc.local
+echo -e "Add to startup..."
+sudo sed -i '/sugar-wifi-conf/d' /etc/rc.local
+sudo sed -i 's/"exit 0"/"Cross the wall, we can reach every corner of the world"/' /etc/rc.local
+sudo sed -i '/exit 0/i sudo bash /opt/sugar-wifi-config/run.sh pisugar /opt/sugar-wifi-config/build/custom_config.json&' /etc/rc.local
+sudo sed -i 's/"Cross the wall, we can reach every corner of the world"/"exit 0"/' /etc/rc.local
+echo -e "Well done Pi Star people!"
+echo -e "Please restart your raspberry pi and enjoy it!!"
+
