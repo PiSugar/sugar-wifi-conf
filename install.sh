@@ -86,7 +86,7 @@ else
     echo "$INSTALL_DIR does not exist."
 fi
 
-echo "Cloning repo..."
+echo "Cloning $REPO_URL to $INSTALL_DIR..."
 mkdir -p $INSTALL_DIR
 git clone $REPO_URL $INSTALL_DIR
 cd $INSTALL_DIR
