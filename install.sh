@@ -1,6 +1,6 @@
 #!/bin/bash
 NVM_URL="https://cdn.pisugar.com/PiSugar-wificonfig/script/install_nvm.sh"
-REPO_URL="https://github.com/PiSugar/sugar-wifi-conf.git"
+REPO_URL="https://gitee.com/jdaie/sugar-wifi-config.git"
 INSTALL_DIR="/opt/sugar-wifi-config"
 
 # Function to check if a command exists
