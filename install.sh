@@ -93,7 +93,8 @@ cd $INSTALL_DIR
 git pull
 
 echo "Installing dependencies..."
-npm i
+npm i yarn -g
+yarn
 
 chmod +x $INSTALL_DIR/run.sh
 
