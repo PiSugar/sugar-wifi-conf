@@ -22,26 +22,20 @@ If you don't have wechat, you can use web-bluetooth to connect to your pi. Make 
   <img width="670" src="https://raw.githubusercontent.com/PiSugar/sugar-wifi-conf/master/image/miniapp-demo-en-fix2.jpg">
 </p>
 
-### Quick Install
+### Install
 ```
-wget http://cdn.pisugar.com/release/sugarwificonfig.sh -O- | sh
+curl https://cdn.pisugar.com/PiSugar-wificonfig/script/install.sh | sudo bash
+
+# the script will add sugar-wifi-conf to /etc/rc.local so that it can run on startup
 ```
 
-### Install from Github
+### Optional Parameters
 ```
-git clone https://github.com/PiSugar/sugar-wifi-conf.git
-sudo -s . ./sugar-wifi-conf/wificonfig.sh
-
-# the scrpit will add sugar-wifi-conf to /etc/rc.local so that it can run on startup
-
-## optional parameters
-
 # edit /etc/rc.local to append parameters to execute path 
 # param 1: key 
 # param 2: path to custom config file
 # example: 
-sudo /home/pi/sugar-wifi-conf/build/sugar-wifi-conf pisugar /home/pi/sugar-wifi-conf/custom_config.json
-
+sudo bash /opt/sugar-wifi-config/run.sh pisugar /opt/sugar-wifi-config/build/custom_config.json&
 ```
 
 ### Custom configuration
