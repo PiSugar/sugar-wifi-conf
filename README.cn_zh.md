@@ -12,24 +12,21 @@
 
 你也可以使用web蓝牙来连接，请确保你的设备和浏览器支持web-bluetooth api. (已在MacOS和Android的chrome浏览器上测试，iOS可使用[WebBLE](https://apps.apple.com/us/app/webble/id1193531073)浏览器) 使用chrome打开[web蓝牙页面](https://www.pisugar.com/sugar-wifi-conf)进行连接。源码详见web-bluetooth-client文件夹。
 
-### 快速安装
+
+### 安装
 ```
-wget http://cdn.pisugar.com/release/sugarwificonfig.sh -O- | sh
+curl https://cdn.pisugar.com/PiSugar-wificonfig/script/install.sh | sudo bash
+
+# the script will add sugar-wifi-conf to /etc/rc.local so that it can run on startup
 ```
 
-### 一般安装步骤
+### 可选参数
 ```
-git clone https://github.com/PiSugar/sugar-wifi-conf.git
-sudo -s . ./sugar-wifi-conf/wificonfig.sh
-
-## 可选参数：
-
 # 程序末尾可以加两个运行参数，可修改/etc/rc.local文件改变运行参数。
 # 第一个参数为key
 # 第二个参数是自定义配置json文件地址
 # 例如：
-sudo /home/pi/sugar-wifi-conf/build/sugar-wifi-conf pisugar /home/pi/sugar-wifi-conf/custom_config.json
-
+sudo bash /opt/sugar-wifi-config/run.sh pisugar /opt/sugar-wifi-config/build/custom_config.json&
 ```
 
 安装完成后重启树莓派。使用微信扫描二维码进入小程序，即可控制树莓派。
