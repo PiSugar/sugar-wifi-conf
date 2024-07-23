@@ -1,5 +1,6 @@
 #!/bin/bash
 NVM_URL="https://cdn.pisugar.com/PiSugar-wificonfig/script/install_nvm.sh"
+NPM_REGISTRY="https://registry.npmmirror.com"
 REPO_URL="https://gitee.com/jdaie/sugar-wifi-config.git"
 INSTALL_DIR="/opt/sugar-wifi-config"
 
@@ -93,8 +94,8 @@ cd $INSTALL_DIR
 git pull
 
 echo "Installing dependencies..."
-npm i yarn -g
-yarn
+npm i yarn -g --registry=$NPM_REGISTRY
+yarn --registry $NPM_REGISTRY
 
 chmod +x $INSTALL_DIR/run.sh
 
