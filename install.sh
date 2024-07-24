@@ -1,5 +1,6 @@
 #!/bin/bash
-NVM_URL="https://cdn.pisugar.com/PiSugar-wificonfig/script/install_nvm.sh"
+NVM_VERSION="0.39.3"
+NVM_URL="https://cdn.pisugar.com/PiSugar-wificonfig/script/nvm/v$NVM_VERSION.tar.gz"
 NPM_REGISTRY="https://registry.npmmirror.com"
 REPO_URL="https://gitee.com/jdaie/sugar-wifi-config.git"
 INSTALL_DIR="/opt/sugar-wifi-config"
@@ -16,7 +17,12 @@ install_node() {
     # Install nvm if it's not already installed
     if [ ! -d "$HOME/.nvm" ]; then
         echo "Installing nvm..."
-        curl -o- $NVM_URL | bash
+        TEMP_DIR=$(mktemp -d)
+        curl -o $TEMP_DIR/nvm-$NVM_VERSION.tar.gz -L $NVM_URL
+        tar -xzf $TEMP_DIR/nvm-$NVM_VERSION.tar.gz -C $TEMP_DIR
+        mv $TEMP_DIR/nvm-$NVM_VERSION $HOME/.nvm
+        rm -rf $TEMP_DIR
+
         export NVM_DIR="$HOME/.nvm"
         [ -s "$NVM_DIR/nvm.sh" ] && \. "$NVM_DIR/nvm.sh"
         [ -s "$NVM_DIR/bash_completion" ] && \. "$NVM_DIR/bash_completion"
@@ -28,6 +34,7 @@ install_node() {
     fi
 
     # Install and use Node.js 18
+    echo "Swith to Node.js 18"
     nvm install 18
     nvm use 18
 
@@ -68,6 +75,20 @@ if ! command_exists npm; then
     fi
 fi
 
+# check if git is installed
+if ! command_exists git; then
+    echo "git is not installed. Installing git..."
+    sudo apt-get install -y git
+
+    # Verify installation
+    if command_exists git; then
+        echo "git installed successfully."
+    else
+        echo "Failed to install git."
+        exit 1
+    fi
+fi
+
 #sudo ln -s "$NVM_DIR/versions/node/$(nvm version)/bin/node" "/usr/local/bin/node"
 #sudo ln -s "$NVM_DIR/versions/node/$(nvm version)/bin/npm" "/usr/local/bin/npm"
 #sudo ln -s "$NVM_DIR/versions/node/$(nvm version)/bin/npx" "/usr/local/bin/npx"
@@ -89,7 +110,7 @@ fi
 
 echo "Cloning $REPO_URL to $INSTALL_DIR..."
 mkdir -p $INSTALL_DIR
-git clone $REPO_URL $INSTALL_DIR
+git clone $REPO_URL $INSTALL_DIR --depth 1
 cd $INSTALL_DIR
 git pull
 
