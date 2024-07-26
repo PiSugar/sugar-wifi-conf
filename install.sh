@@ -1,8 +1,10 @@
 #!/bin/bash
 NVM_VERSION="0.39.3"
 NVM_URL="https://cdn.pisugar.com/PiSugar-wificonfig/script/nvm/v$NVM_VERSION.tar.gz"
+YARN_URL="https://yarnpkg.com/install.sh"
 NPM_REGISTRY="https://registry.npmmirror.com"
 REPO_URL="https://gitee.com/jdaie/sugar-wifi-config.git"
+NODE_BINARY_INSTALL_URL="https://cdn.pisugar.com/PiSugar-wificonfig/script/node-binary/install-node-v18.19.1.sh"
 INSTALL_DIR="/opt/sugar-wifi-config"
 
 # Function to check if a command exists
@@ -11,7 +13,7 @@ command_exists() {
 }
 
 # Function to install nvm and Node.js 18
-install_node() {
+install_node_nvm() {
     echo "Installing Node.js 18 using nvm..."
     
     # Install nvm if it's not already installed
@@ -44,6 +46,31 @@ install_node() {
     else
         echo "Failed to install Node.js 18."
         exit 1
+    fi
+}
+
+install_node_binary() {
+    echo "Installing Node.js 18 for pi zero..."
+    TEMP_DIR=$(mktemp -d)
+    curl -o $TEMP_DIR/install-node-v18.19.1.sh -L $NODE_BINARY_INSTALL_URL
+    chmod +x $TEMP_DIR/install-node-v18.19.1.sh
+    sudo bash $TEMP_DIR/install-node-v18.19.1.sh
+    rm -rf $TEMP_DIR
+
+    # Verify installation
+    if command_exists node && [[ "$(node -v)" =~ ^v18 ]]; then
+        echo "Node.js 18 installed successfully."
+    else
+        echo "Failed to install Node.js 18."
+        exit 1
+    fi
+}
+
+install_node() {
+    if [[ "$(uname -m)" == "armv6l" ]]; then
+        install_node_binary
+    else
+        install_node_nvm
     fi
 }
 
@@ -89,6 +116,21 @@ if ! command_exists git; then
     fi
 fi
 
+# check if yarn is installed
+if ! command_exists yarn; then
+    echo "yarn is not installed. Installing yarn..."
+    curl -o- -L $YARN_URL | bash
+    export PATH="$HOME/.yarn/bin:$HOME/.config/yarn/global/node_modules/.bin:$PATH"
+
+    # Verify installation
+    if command_exists yarn; then
+        echo "yarn installed successfully."
+    else
+        echo "Failed to install yarn."
+        exit 1
+    fi
+fi
+
 #sudo ln -s "$NVM_DIR/versions/node/$(nvm version)/bin/node" "/usr/local/bin/node"
 #sudo ln -s "$NVM_DIR/versions/node/$(nvm version)/bin/npm" "/usr/local/bin/npm"
 #sudo ln -s "$NVM_DIR/versions/node/$(nvm version)/bin/npx" "/usr/local/bin/npx"
@@ -115,8 +157,7 @@ cd $INSTALL_DIR
 git pull
 
 echo "Installing dependencies..."
-npm i yarn -g --registry=$NPM_REGISTRY
-yarn --registry $NPM_REGISTRY
+yarn --registry=$NPM_REGISTRY
 
 chmod +x $INSTALL_DIR/run.sh
 
