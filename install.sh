@@ -161,16 +161,23 @@ yarn --registry=$NPM_REGISTRY
 
 chmod +x $INSTALL_DIR/run.sh
 
-
-# 定义服务名称和服务文件路径
+# Define service name and service file path
 SERVICE_NAME="sugar-wifi-config.service"
 SERVICE_FILE="/etc/systemd/system/$SERVICE_NAME"
 
-# 删除旧的 rc.local 配置
+# Remove old rc.local configuration
 echo -e "Removing old rc.local configuration..."
 sudo sed -i '/sugar-wifi-conf/d' /etc/rc.local
 
-# 创建 systemd 服务文件
+# If systemd service exists, remove old systemd service file
+if [ -f "$SERVICE_FILE" ]; then
+    echo -e "Removing old systemd service file..."
+    sudo systemctl stop $SERVICE_NAME
+    sudo systemctl disable $SERVICE_NAME
+    sudo rm -f $SERVICE_FILE
+fi
+
+# Create systemd service file
 echo -e "Creating systemd service file..."
 sudo bash -c "cat > $SERVICE_FILE <<EOF
 [Unit]
@@ -187,18 +194,18 @@ User=root
 WantedBy=multi-user.target
 EOF"
 
-# 重新加载 systemd 配置
+# Reload systemd configuration
 echo -e "Reloading systemd configuration..."
 sudo systemctl daemon-reload
 
-# 启用并启动服务
+# Enable and start service
 echo -e "Enabling and starting $SERVICE_NAME..."
 sudo systemctl enable $SERVICE_NAME
 sudo systemctl start $SERVICE_NAME
 
-# 检查服务状态
+# Check service status
 echo -e "Checking service status..."
 sudo systemctl status $SERVICE_NAME
 
-# 完成提示
+# Check if service is running
 echo -e "\nWell done Pi Star people!"
