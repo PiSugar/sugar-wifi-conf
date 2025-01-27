@@ -106,5 +106,5 @@ fi
 
 echo "Starting service..."
 cd $INSTALL_DIR
-# 运行node index.js 并将命令参数拼接到后面
+# run node index.js with parameters
 node index.js $@
