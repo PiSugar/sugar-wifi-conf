@@ -161,18 +161,44 @@ yarn --registry=$NPM_REGISTRY
 
 chmod +x $INSTALL_DIR/run.sh
 
-# /etc/rc.local
-echo "Adding startup command to /etc/rc.local..."
-mkdir -p $INSTALL_DIR/build
-cp custom_config.json $INSTALL_DIR/build/custom_config.json
 
-# Check if /etc/rc.local exists and add the startup command if it does
-# sudo sed -i "/exit 0/i sudo bash $INSTALL_DIR/run.sh pisugar $INSTALL_DIR/build/custom_config.json&" /etc/rc.local
-echo -e "Add to startup..."
+# 定义服务名称和服务文件路径
+SERVICE_NAME="sugar-wifi-config.service"
+SERVICE_FILE="/etc/systemd/system/$SERVICE_NAME"
+
+# 删除旧的 rc.local 配置
+echo -e "Removing old rc.local configuration..."
 sudo sed -i '/sugar-wifi-conf/d' /etc/rc.local
-sudo sed -i 's/"exit 0"/"Cross the wall, we can reach every corner of the world"/' /etc/rc.local
-sudo sed -i '/exit 0/i sudo bash /opt/sugar-wifi-config/run.sh pisugar /opt/sugar-wifi-config/build/custom_config.json&' /etc/rc.local
-sudo sed -i 's/"Cross the wall, we can reach every corner of the world"/"exit 0"/' /etc/rc.local
-echo -e "Well done Pi Star people!"
-echo -e "Please restart your raspberry pi and enjoy it!!"
 
+# 创建 systemd 服务文件
+echo -e "Creating systemd service file..."
+sudo bash -c "cat > $SERVICE_FILE <<EOF
+[Unit]
+Description=Sugar WiFi Configuration Service
+After=network.target
+
+[Service]
+ExecStart=/usr/bin/bash /opt/sugar-wifi-config/run.sh pisugar /opt/sugar-wifi-config/build/custom_config.json
+WorkingDirectory=/opt/sugar-wifi-config
+Restart=always
+User=root
+
+[Install]
+WantedBy=multi-user.target
+EOF"
+
+# 重新加载 systemd 配置
+echo -e "Reloading systemd configuration..."
+sudo systemctl daemon-reload
+
+# 启用并启动服务
+echo -e "Enabling and starting $SERVICE_NAME..."
+sudo systemctl enable $SERVICE_NAME
+sudo systemctl start $SERVICE_NAME
+
+# 检查服务状态
+echo -e "Checking service status..."
+sudo systemctl status $SERVICE_NAME
+
+# 完成提示
+echo -e "\nWell done Pi Star people!"
