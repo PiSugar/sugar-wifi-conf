@@ -11,7 +11,7 @@ A BLE service to configure wifi over bluetooth for a Raspberry Pi. You can:
 - get other custom info, e.g. CPU tempreture, CPU load, or whatever you can get by shell
 - remote control the pi to execute shell script and get response, such as shutdown, reboot 
 
-Tested on Raspberry Pi 3B/3B+/zero w (models with bluetooth) with Raspbian.
+Tested on Raspberry Pi 5B/4B/3B/3B+/zerow/zero2w (models with bluetooth) with Raspbian.
 
 To access client-side app, please use Wechat app to scan the QR-code above. Source code of client-side is in folder /sugar-wifi-miniapp.
 
