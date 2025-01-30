@@ -185,7 +185,7 @@ Description=Sugar WiFi Configuration Service
 After=network.target
 
 [Service]
-ExecStart=/usr/bin/bash /opt/sugar-wifi-config/run.sh pisugar /opt/sugar-wifi-config/build/custom_config.json
+ExecStart=/usr/bin/bash /opt/sugar-wifi-config/run.sh pisugar /opt/sugar-wifi-config/custom_config.json
 WorkingDirectory=/opt/sugar-wifi-config
 Restart=always
 User=root
@@ -203,9 +203,7 @@ echo -e "Enabling and starting $SERVICE_NAME..."
 sudo systemctl enable $SERVICE_NAME
 sudo systemctl start $SERVICE_NAME
 
-# Check service status
-echo -e "Checking service status..."
-sudo systemctl status $SERVICE_NAME
+echo -e "You can check the service status by running: sudo systemctl status $SERVICE_NAME"
 
 # Check if service is running
 echo -e "\nWell done Pi Star people!"

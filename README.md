@@ -31,7 +31,8 @@ curl https://cdn.pisugar.com/PiSugar-wificonfig/script/install.sh | sudo bash
 
 ### Optional Parameters
 ```
-# edit /etc/rc.local to append parameters to execute path 
+
+# edit /etc/systemd/system/sugar-wifi-config.service to append parameters to execute path 
 # param 1: key 
 # param 2: path to custom config file
 # example: 
