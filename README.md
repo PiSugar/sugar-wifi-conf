@@ -26,7 +26,7 @@ If you don't have wechat, you can use web-bluetooth to connect to your pi. Make 
 ```
 curl https://cdn.pisugar.com/PiSugar-wificonfig/script/install.sh | sudo bash
 
-# the script will add sugar-wifi-conf to /etc/rc.local so that it can run on startup
+# the script will add sugar-wifi-conf as a systemd service so that it can run on startup
 ```
 
 ### Optional Parameters
