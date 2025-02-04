@@ -47,9 +47,9 @@ sudo bash /opt/sugar-wifi-config/run.sh pisugar /opt/sugar-wifi-config/build/cus
 
 注意：若配置文件格式有误或着因权限问题无法读取，小程序端将无法获取自定义的信息。
 
-info为小程序显示的参数，注意command获得的结果不能超过20个字符，interval为每次获取结果的间隔秒数。
+info为客户端显示的参数，注意command获得的结果不能超过20个字符，interval为每次获取结果的间隔秒数。
 
-commands为小程序壳可向树莓派发出的shell命令。
+commands为客户端可向树莓派发出的shell命令。
 
 ```
 {
