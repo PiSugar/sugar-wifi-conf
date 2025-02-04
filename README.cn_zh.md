@@ -1,12 +1,17 @@
 # sugar-wifi-conf
 
+<p>
+  <img width="200" src="https://github.com/user-attachments/assets/e620a5b4-a788-4b72-8f49-fe186f2bf7fa" />
+  <img width="200" src="https://raw.githubusercontent.com/PiSugar/sugar-wifi-conf/master/image/qrcode.jpg" />
+</p>
+
 [English](https://github.com/PiSugar/sugar-wifi-conf) | 简体中文 
 
-![PiSugar MiniAPP](https://raw.githubusercontent.com/PiSugar/sugar-wifi-conf/master/image/qrcode.jpg)
+让树莓派提供蓝牙BLE服务，使用PiSugar APP/小程序即可随时更改树莓派的wifi连接，获取wifi名称和ip地址等信息，也可以自定义显示系统信息，接受和执行shell命令。
 
-让树莓派提供蓝牙BLE服务，使用小程序即可随时更改树莓派的wifi连接，获取wifi名称和ip地址等信息，也可以自定义显示系统信息，接受和执行shell命令。
+适用于带有蓝牙的树莓派型号(已测试5B/4B/3B+/zero w/zero 2w)，在Raspbain官方镜像可运行。
 
-适用于带有蓝牙的树莓派型号(已测试3B+, zero w)，在Raspbain官方镜像可运行。
+PiSugar APP / 微信小程序 请扫描上方二维码获取。
 
 小程序源代码详见sugar-wifi-miniapp文件夹。
 
