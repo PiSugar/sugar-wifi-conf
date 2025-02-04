@@ -16,7 +16,7 @@ A BLE service to configure wifi over bluetooth for a Raspberry Pi. You can:
 
 Tested on Raspberry Pi 5B/4B/3B/3B+/zero w/zero2 w (models with bluetooth) with Raspbian.
 
-Client-side app includes Wechat miniapp and PiSugar APP (supports wifi config from 1.1.0), please scan the QR-code above. 
+Client-side app includes PiSugar APP (supports wifi config from 1.1.0) and Wechat miniapp, please scan the QR-code above to download. 
 
 Source code of Wechat miniapp is in folder /sugar-wifi-miniapp.
 
