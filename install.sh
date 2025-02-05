@@ -1,7 +1,6 @@
 #!/bin/bash
 NVM_VERSION="0.39.3"
 NVM_URL="https://cdn.pisugar.com/PiSugar-wificonfig/script/nvm/v$NVM_VERSION.tar.gz"
-YARN_URL="https://yarnpkg.com/install.sh"
 NPM_REGISTRY="https://registry.npmmirror.com"
 REPO_URL="https://gitee.com/jdaie/sugar-wifi-config.git"
 NODE_BINARY_INSTALL_URL="https://cdn.pisugar.com/PiSugar-wificonfig/script/node-binary/install-node-v18.19.1.sh"
@@ -119,7 +118,8 @@ fi
 # check if yarn is installed
 if ! command_exists yarn; then
     echo "yarn is not installed. Installing yarn..."
-    curl -o- -L $YARN_URL | bash
+    npm config set registry $NPM_REGISTRY
+    npm install -g yarn
     export PATH="$HOME/.yarn/bin:$HOME/.config/yarn/global/node_modules/.bin:$PATH"
 
     # Verify installation
