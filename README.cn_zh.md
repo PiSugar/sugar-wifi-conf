@@ -1,12 +1,17 @@
 # sugar-wifi-conf
 
+<p>
+  <img width="200" src="https://github.com/user-attachments/assets/e620a5b4-a788-4b72-8f49-fe186f2bf7fa" />
+  <img width="200" src="https://raw.githubusercontent.com/PiSugar/sugar-wifi-conf/master/image/qrcode.jpg" />
+</p>
+
 [English](https://github.com/PiSugar/sugar-wifi-conf) | 简体中文 
 
-![PiSugar MiniAPP](https://raw.githubusercontent.com/PiSugar/sugar-wifi-conf/master/image/qrcode.jpg)
+让树莓派提供蓝牙BLE服务，使用PiSugar APP/小程序即可随时更改树莓派的wifi连接，获取wifi名称和ip地址等信息，也可以自定义显示系统信息，接受和执行shell命令。
 
-让树莓派提供蓝牙BLE服务，使用小程序即可随时更改树莓派的wifi连接，获取wifi名称和ip地址等信息，也可以自定义显示系统信息，接受和执行shell命令。
+适用于带有蓝牙的树莓派型号(已测试5B/4B/3B+/zero w/zero 2w)，在Raspbain官方镜像可运行。
 
-适用于带有蓝牙的树莓派型号(已测试3B+, zero w)，在Raspbain官方镜像可运行。
+PiSugar APP / 微信小程序 请扫描上方二维码获取。
 
 小程序源代码详见sugar-wifi-miniapp文件夹。
 
@@ -22,14 +27,14 @@ curl https://cdn.pisugar.com/PiSugar-wificonfig/script/install.sh | sudo bash
 
 ### 可选参数
 ```
-# 程序末尾可以加两个运行参数，可修改/etc/rc.local文件改变运行参数。
+# 可修改 /etc/systemd/system/sugar-wifi-config.service 文件改变运行参数
 # 第一个参数为key
 # 第二个参数是自定义配置json文件地址
 # 例如：
-sudo bash /opt/sugar-wifi-config/run.sh pisugar /opt/sugar-wifi-config/build/custom_config.json&
+sudo bash /opt/sugar-wifi-config/run.sh pisugar /opt/sugar-wifi-config/build/custom_config.json
 ```
 
-安装完成后重启树莓派。使用微信扫描二维码进入小程序，即可控制树莓派。
+安装完成后重启树莓派。进入PiSugar APP的Wifi Config页面或者使用微信扫描二维码进入小程序，即可控制树莓派。
 
 <p align="center">
   <img width="190" src="https://raw.githubusercontent.com/PiSugar/sugar-wifi-conf/master/image/demo.gif">
@@ -42,9 +47,9 @@ sudo bash /opt/sugar-wifi-config/run.sh pisugar /opt/sugar-wifi-config/build/cus
 
 注意：若配置文件格式有误或着因权限问题无法读取，小程序端将无法获取自定义的信息。
 
-info为小程序显示的参数，注意command获得的结果不能超过20个字符，interval为每次获取结果的间隔秒数。
+info为客户端显示的参数，注意command获得的结果不能超过20个字符，interval为每次获取结果的间隔秒数。
 
-commands为小程序壳可向树莓派发出的shell命令。
+commands为客户端可向树莓派发出的shell命令。
 
 ```
 {
