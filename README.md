@@ -1,6 +1,9 @@
 # sugar-wifi-conf
 
-![PiSugar Wechat MiniApp](https://raw.githubusercontent.com/PiSugar/sugar-wifi-conf/master/image/qrcode.jpg)
+<p>
+  <img width="200" src="https://github.com/user-attachments/assets/e620a5b4-a788-4b72-8f49-fe186f2bf7fa" />
+  <img width="200" src="https://raw.githubusercontent.com/PiSugar/sugar-wifi-conf/master/image/qrcode.jpg" />
+</p>
 
 English | [简体中文](https://github.com/PiSugar/sugar-wifi-conf/blob/master/README.cn_zh.md)
 
@@ -11,9 +14,11 @@ A BLE service to configure wifi over bluetooth for a Raspberry Pi. You can:
 - get other custom info, e.g. CPU tempreture, CPU load, or whatever you can get by shell
 - remote control the pi to execute shell script and get response, such as shutdown, reboot 
 
-Tested on Raspberry Pi 5B/4B/3B/3B+/zerow/zero2w (models with bluetooth) with Raspbian.
+Tested on Raspberry Pi 5B/4B/3B/3B+/zero w/zero2 w (models with bluetooth) with Raspbian.
 
-To access client-side app, please use Wechat app to scan the QR-code above. Source code of client-side is in folder /sugar-wifi-miniapp.
+Client-side app includes PiSugar APP (supports wifi config from 1.1.0) and Wechat miniapp, please scan the QR-code above to download. 
+
+Source code of Wechat miniapp is in folder /sugar-wifi-miniapp.
 
 If you don't have wechat, you can use web-bluetooth to connect to your pi. Make sure your device and broswer support web-bluetooth api, visit [https://www.pisugar.com/sugar-wifi-conf](https://www.pisugar.com/sugar-wifi-conf) to connect. (Tested on MacOS and Android with Chrome, iOS [WebBLE](https://apps.apple.com/us/app/webble/id1193531073) browser) Source code of web-bluetooth client is in folder /web-bluetooth-client.
 
@@ -36,7 +41,7 @@ curl https://cdn.pisugar.com/PiSugar-wificonfig/script/install.sh | sudo bash
 # param 1: key 
 # param 2: path to custom config file
 # example: 
-sudo bash /opt/sugar-wifi-config/run.sh pisugar /opt/sugar-wifi-config/build/custom_config.json&
+sudo bash /opt/sugar-wifi-config/run.sh pisugar /opt/sugar-wifi-config/build/custom_config.json
 ```
 
 ### Custom configuration
