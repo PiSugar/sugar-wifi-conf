@@ -28,10 +28,12 @@ install_node_nvm() {
         [ -s "$NVM_DIR/nvm.sh" ] && \. "$NVM_DIR/nvm.sh"
         [ -s "$NVM_DIR/bash_completion" ] && \. "$NVM_DIR/bash_completion"
 
-        # Add nvm to bash profile
-        echo "export NVM_DIR=\"$HOME/.nvm\"" >> $HOME/.bashrc
-        echo "[ -s \"\$NVM_DIR/nvm.sh\" ] && \. \"\$NVM_DIR/nvm.sh\"" >> $HOME/.bashrc
-        echo "[ -s \"\$NVM_DIR/bash_completion\" ] && \. \"\$NVM_DIR/bash_completion\"" >> $HOME/.bashrc
+        # check if nvm is in the bash profile
+        if ! grep -q "nvm" $HOME/.bashrc; then
+            echo "export NVM_DIR=\"$HOME/.nvm\"" >> $HOME/.bashrc
+            echo "[ -s \"\$NVM_DIR/nvm.sh\" ] && \. \"\$NVM_DIR/nvm.sh\"" >> $HOME/.bashrc
+            echo "[ -s \"\$NVM_DIR/bash_completion\" ] && \. \"\$NVM_DIR/bash_completion\"" >> $HOME/.bashrc
+        fi
     else
         echo "nvm is already installed."
         export NVM_DIR="$HOME/.nvm"
