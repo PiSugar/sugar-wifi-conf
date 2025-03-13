@@ -30,7 +30,7 @@
   },
   "homepage": "https://github.com/PiSugar/sugar-wifi-conf#readme",
   "dependencies": {
-    "@abandonware/bleno": "^0.6.1"
+    "@abandonware/bleno": "^0.6.2"
   },
   "devDependencies": {
     "babel-plugin-transform-runtime": "^6.23.0",

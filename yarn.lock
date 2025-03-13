@@ -3,9 +3,9 @@
 
 
 "@abandonware/bleno@^0.6.1":
-  version "0.6.1"
-  resolved "https://registry.yarnpkg.com/@abandonware/bleno/-/bleno-0.6.1.tgz#b6901a64836c98e91212f1912c354b76f8c258ff"
-  integrity sha512-UYJhfOlRpg+o6H9VCL3xvBBchEV3mfGS+/ESmFd4cTy/HmoBTofFTecBMvV79/AZP5CSmQ9Qifx03kPBA4PgsQ==
+  version "0.6.2"
+  resolved "https://registry.npmmirror.com/@abandonware/bleno/-/bleno-0.6.2.tgz#d61eaccfa90270ccd0d6552a2862788851b864ad"
+  integrity sha512-F00DYWcuKqPpz+0YKJxYEyCYYtGLbGTLwEQ7xvra3paECb2FcpaYk5t1djgl9Mdbzzx9cxUHIQVJ4FZn51bE8w==
   dependencies:
     debug "^4.3.4"
     napi-thread-safe-callback "0.0.6"
@@ -1703,10 +1703,10 @@ picomatch@^2.3.1:
   resolved "https://registry.yarnpkg.com/picomatch/-/picomatch-2.3.1.tgz#3ba3833733646d9d3e4995946c1365a67fb07a42"
   integrity sha512-JU3teHTNjmE2VCGFzuY8EXzCDVwEqB2a8fsIvwaStHhAWJEeVd1o1QD80CU6+ZdEXXSLbSsuLwJjkCBWqRQUVA==
 
-pkg-fetch@3.4.2:
-  version "3.4.2"
-  resolved "https://registry.yarnpkg.com/pkg-fetch/-/pkg-fetch-3.4.2.tgz#6f68ebc54842b73f8c0808959a9df3739dcb28b7"
-  integrity sha512-0+uijmzYcnhC0hStDjm/cl2VYdrmVVBpe7Q8k9YBojxmR5tG8mvR9/nooQq3QSXiQqORDVOTY3XqMEqJVIzkHA==
+pkg-fetch@3.4.2, pkg-fetch@^3.2:
+  version "3.5.2"
+  resolved "https://registry.npmmirror.com/pkg-fetch/-/pkg-fetch-3.5.2.tgz#33e0d4f3b0c371fa9c133a10a081d5955d104376"
+  integrity sha512-KlRF3cDS4J5PRTKh5dkF5s+CYKa+4eUXzymWqTKPU/p3WmYlWZu7AS0dH8moPxg+QcJNB4/wu1wVO2a0Asv2Dw==
   dependencies:
     chalk "^4.1.2"
     fs-extra "^9.1.0"
