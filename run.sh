@@ -106,5 +106,11 @@ fi
 
 echo "Starting service..."
 cd $INSTALL_DIR
+
+echo "Unblocking bluetooth..."
+rfkill list
+rfkill unblock bluetooth
+sudo hciconfig hci0 up
+
 # run node index.js with parameters
 node index.js $@
