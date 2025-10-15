@@ -1,5 +1,5 @@
 let util = require('util')
-let bleno = require('@stoprocent/bleno')
+let bleno = require('@abandonware/bleno')
 let UUID = require('../sugar-uuid')
 
 let BlenoCharacteristic = bleno.Characteristic
