@@ -1,5 +1,5 @@
 let util = require('util')
-let bleno = require('@abandonware/bleno')
+let bleno = require('@stoprocent/bleno')
 let UUID = require('./sugar-uuid')
 let config = require('./config')
 
