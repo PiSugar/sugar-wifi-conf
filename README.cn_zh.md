@@ -31,7 +31,7 @@ curl https://cdn.pisugar.com/PiSugar-wificonfig/script/install.sh | sudo bash
 # 第一个参数为key
 # 第二个参数是自定义配置json文件地址
 # 例如：
-sudo bash /opt/sugar-wifi-config/run.sh pisugar /opt/sugar-wifi-config/build/custom_config.json
+sudo bash /opt/sugar-wifi-config/run.sh pisugar /opt/sugar-wifi-config/custom_config.json
 ```
 
 安装完成后重启树莓派。进入PiSugar APP的Wifi Config页面或者使用微信扫描二维码进入小程序，即可控制树莓派。
