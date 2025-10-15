@@ -1,6 +1,6 @@
 const execSync = require('child_process').execSync
 let util = require('util')
-let bleno = require('@abandonware/bleno')
+let bleno = require('@stoprocent/bleno')
 let UUID = require('../sugar-uuid')
 const fs = require('fs')
 
