@@ -1,0 +1,27 @@
+[package]
+name = "sugar-wifi-conf"
+version = "0.1.0"
+edition = "2021"
+description = "BLE WiFi configuration service for Raspberry Pi"
+license = "MIT"
+
+[[bin]]
+name = "sugar-wifi-conf"
+path = "src/main.rs"
+
+[dependencies]
+bluer = { version = "0.17", features = ["full"] }
+tokio = { version = "1", features = ["full"] }
+serde = { version = "1", features = ["derive"] }
+serde_json = "1"
+clap = { version = "4", features = ["derive"] }
+regex = "1"
+log = "0.4"
+env_logger = "0.11"
+uuid = "1"
+futures = "0.3"
+
+[profile.release]
+opt-level = "s"
+lto = true
+strip = true

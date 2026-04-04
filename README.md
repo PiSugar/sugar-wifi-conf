@@ -18,7 +18,7 @@ Tested on Raspberry Pi 5B/4B/3B/3B+/zero w/zero2 w (models with bluetooth) with 
 
 Client-side app includes PiSugar APP (supports wifi config from 1.1.0) and Wechat miniapp, please scan the QR-code above to download. 
 
-Source code of Wechat miniapp is in folder /sugar-wifi-miniapp.
+Source code of Wechat miniapp is in folder /wechat-miniapp.
 
 If you don't have wechat, you can use web-bluetooth to connect to your pi. Make sure your device and broswer support web-bluetooth api, visit [https://www.pisugar.com/sugar-wifi-conf](https://www.pisugar.com/sugar-wifi-conf) to connect. (Tested on MacOS and Android with Chrome, iOS [WebBLE](https://apps.apple.com/us/app/webble/id1193531073) browser) Source code of web-bluetooth client is in folder /web-bluetooth-client.
 
