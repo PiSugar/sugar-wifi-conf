@@ -46,6 +46,10 @@ cargo build --release
 cp "$INSTALL_DIR/rust/target/release/sugar-wifi-conf" "$INSTALL_DIR/sugar-wifi-conf"
 chmod +x "$INSTALL_DIR/sugar-wifi-conf"
 
+# Create symlink so 'sugar-wifi-conf' is available system-wide
+echo "Creating symlink in /usr/local/bin..."
+sudo ln -sf "$INSTALL_DIR/sugar-wifi-conf" /usr/local/bin/sugar-wifi-conf
+
 # Remove old rc.local configuration
 echo "Removing old rc.local configuration..."
 sudo sed -i '/sugar-wifi-conf/d' /etc/rc.local 2>/dev/null || true
@@ -67,7 +71,7 @@ After=network.target bluetooth.target
 Wants=bluetooth.target
 
 [Service]
-ExecStartPre=/usr/bin/rfkill unblock bluetooth
+ExecStartPre=/usr/sbin/rfkill unblock bluetooth
 ExecStart=$INSTALL_DIR/sugar-wifi-conf --name pisugar --key pisugar --config $INSTALL_DIR/custom_config.json
 WorkingDirectory=$INSTALL_DIR
 Restart=always

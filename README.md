@@ -18,7 +18,7 @@ Tested on Raspberry Pi 5B/4B/3B/3B+/zero w/zero2 w (models with bluetooth) with 
 
 Client-side app includes PiSugar APP (supports wifi config from 1.1.0) and Wechat miniapp, please scan the QR-code above to download. 
 
-Source code of Wechat miniapp is in folder /wechat-miniapp.
+Source code of Wechat miniapp is in folder /sugar-wifi-miniapp.
 
 If you don't have wechat, you can use web-bluetooth to connect to your pi. Make sure your device and broswer support web-bluetooth api, visit [https://www.pisugar.com/sugar-wifi-conf](https://www.pisugar.com/sugar-wifi-conf) to connect. (Tested on MacOS and Android with Chrome, iOS [WebBLE](https://apps.apple.com/us/app/webble/id1193531073) browser) Source code of web-bluetooth client is in folder /web-bluetooth-client.
 
@@ -27,13 +27,92 @@ If you don't have wechat, you can use web-bluetooth to connect to your pi. Make 
   <img width="670" src="https://raw.githubusercontent.com/PiSugar/sugar-wifi-conf/master/image/miniapp-demo-en-fix2.jpg">
 </p>
 
-### Install
+### Install (Rust version, recommended)
+
+The Rust version is a rewrite with lower resource usage and faster startup. Source code is in the `/rust` directory. The original Node.js version is in `/node`.
+
+```
+# Build and install from source on the Pi
+cd rust
+curl --proto '=https' --tlsv1.2 -sSf https://sh.rustup.rs | sh -s -- -y
+source "$HOME/.cargo/env"
+cargo build --release
+sudo mkdir -p /opt/sugar-wifi-config
+sudo cp target/release/sugar-wifi-conf /opt/sugar-wifi-config/
+sudo cp ../custom_config.json /opt/sugar-wifi-config/
+```
+
+Or use the install script:
+```
+cd rust && sudo bash install.sh
+```
+
+### Install (Node.js version, legacy)
 ```
 curl https://cdn.pisugar.com/PiSugar-wificonfig/script/install.sh | sudo bash
 ```
 The script will add sugar-wifi-conf as a systemd service so that it can run on startup
 
-### Optional Parameters
+### Usage
+
+#### Start BLE service (default)
+```
+# Start with default settings
+sugar-wifi-conf
+
+# Start with custom parameters
+sugar-wifi-conf --name pisugar --key mykey --config /path/to/custom_config.json
+
+# Or use 'serve' subcommand explicitly
+sugar-wifi-conf serve --name pisugar --key mykey
+```
+
+#### Interactive config editor
+Edit `custom_config.json` interactively from the command line without manually editing JSON:
+```
+sugar-wifi-conf config --config /opt/sugar-wifi-config/custom_config.json
+```
+
+This opens an interactive menu where you can:
+- View current info items and commands
+- Add / edit / remove info items (label, command, interval)
+- Add / edit / remove commands (label, command)
+- Save changes or exit without saving
+
+Example session:
+```
+=== Sugar WiFi Config Editor ===
+Config file: /opt/sugar-wifi-config/custom_config.json
+
+1) Show current config
+2) Add info item
+3) Edit info item
+4) Remove info item
+5) Add command
+6) Edit command
+7) Remove command
+8) Save and exit
+9) Exit without saving
+
+Choice: 1
+
+--- Info Items (4) ---
+  [1] label: "CPU Temp", command: "vcgencmd measure_temp ...", interval: 5s
+  [2] label: "CPU Load", command: "top -bn1 ...", interval: 1s
+  [3] label: "Memory", command: "free -m ...", interval: 5s
+  [4] label: "UP Time", command: "uptime -p ...", interval: 10s
+
+--- Commands (2) ---
+  [1] label: "shutdown", command: "shutdown"
+  [2] label: "reboot", command: "reboot"
+```
+
+After editing, restart the service to apply changes:
+```
+sudo systemctl restart sugar-wifi-config
+```
+
+### Optional Parameters (legacy Node.js)
 ```
 
 # edit /etc/systemd/system/sugar-wifi-config.service to append parameters to execute path 

@@ -27,7 +27,9 @@ rfkill unblock bluetooth
 sudo hciconfig hci0 up 2>/dev/null || true
 
 # Parse arguments: first arg is BLE name/key, second is config path
-BLE_NAME="${1:-pisugar}"
+# Default BLE name: use device model from /proc/device-tree/model
+DEFAULT_NAME=$(tr -d '\0' < /proc/device-tree/model 2>/dev/null || echo "pisugar")
+BLE_NAME="${1:-$DEFAULT_NAME}"
 CONFIG_PATH="${2:-$SCRIPT_DIR/../custom_config.json}"
 
 echo "Running: $BINARY --name $BLE_NAME --key $BLE_NAME --config $CONFIG_PATH"
