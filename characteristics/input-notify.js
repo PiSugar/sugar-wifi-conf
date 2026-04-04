@@ -24,6 +24,12 @@ async function checkWlan0Managed() {
     const lines = status.split('\n');
     for (const line of lines) {
       if (line.includes('wlan0')) {
+        if (line.includes('unavailable')) {
+          console.log('wlan0 is unavailable.');
+          await executeCommand('sudo rfkill unblock wifi').catch(() => {
+            console.log('Failed to unblock wifi. Please check your permissions.')
+          });
+        }
         if (line.includes('connected') || line.includes('disconnected')) {
           console.log('wlan0 is managed by NetworkManager.');
           return true;
