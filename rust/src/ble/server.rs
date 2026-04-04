@@ -73,6 +73,10 @@ pub async fn run_ble_server(args: Args, custom_config: CustomConfig) -> bluer::R
     );
     characteristics.extend(cmd_chars);
 
+    // 10. SSH tunnel characteristics (ctrl + rx + tx)
+    let ssh_chars = super::ssh_tunnel::build();
+    characteristics.extend(ssh_chars);
+
     // Build the GATT application
     let app = Application {
         services: vec![Service {

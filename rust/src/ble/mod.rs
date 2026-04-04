@@ -6,6 +6,7 @@ pub mod ip_address;
 pub mod input_notify;
 pub mod custom_info;
 pub mod custom_command;
+pub mod ssh_tunnel;
 
 /// Protocol constants matching the JS client protocol.
 pub const CONCAT_TAG: &str = "%&%";

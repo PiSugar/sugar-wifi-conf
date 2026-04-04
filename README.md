@@ -112,6 +112,66 @@ After editing, restart the service to apply changes:
 sudo systemctl restart sugar-wifi-config
 ```
 
+### SSH over BLE tunnel
+
+The Rust version includes a built-in SSH tunnel that lets you SSH into the Pi through the BLE connection — no WiFi or IP address required. A macOS command-line client is provided in `/ble-ssh-client`.
+
+#### Build the client (macOS)
+
+```bash
+cd ble-ssh-client
+cargo build --release
+# binary at target/release/ble-ssh
+```
+
+#### Usage
+
+```bash
+# Auto mode: scan BLE, select device interactively, prefer IP when reachable
+ble-ssh
+
+# Specify a known IP (still uses BLE as fallback)
+ble-ssh --ip 192.168.1.100
+
+# IP-only mode (no BLE scan)
+ble-ssh --ip 192.168.1.100 --no-ble
+
+# Force BLE tunnel even when IP is reachable
+ble-ssh --force-ble
+
+# Custom local port and scan timeout
+ble-ssh --port 2222 --scan-timeout 15
+```
+
+When multiple devices are found, an interactive picker is shown:
+```
+  📱 Found: pisugar-a
+  📱 Found: pisugar-b
+
+? Select device
+> pisugar-a (IP: 192.168.1.100)
+  pisugar-b (BLE only)
+
+? Connection mode
+> Auto (prefer IP, BLE fallback)
+  Force BLE
+```
+
+Then connect in another terminal:
+```bash
+ssh pi@localhost -p 2222
+```
+
+The client displays real-time transfer speed while the tunnel is active.
+
+#### How it works
+
+1. The client scans for the PiSugar BLE device and connects.
+2. For each SSH connection, the client sends `CONNECT` via SSH_CTRL. The server opens a TCP connection to local sshd (127.0.0.1:22) and replies `OK`.
+3. SSH data flows bidirectionally: client → SSH_RX → sshd, and sshd → SSH_TX → client.
+4. When the SSH session ends, `DISCONNECT` is sent and the server replies `CLOSED`.
+5. If the Pi's IP is reachable, the client bridges directly over TCP for better speed; otherwise it falls back to BLE.
+
 ### Optional Parameters (legacy Node.js)
 ```
 
@@ -205,6 +265,9 @@ Service uuid: FD2B-4448-AA0F-4A15-A62F-EB0BE77A0000
 | CUSTOM_INFO_LABEL | 0000-0000-0000-0000-0000-FD2BCCCAXXXX | read | label of custom info |
 | CUSTOM_INFO | 0000-0000-0000-0000-0000-FD2BCCCBXXXX | notify | value of custom info |
 | CUSTOM_COMMAND_LABEL | 0000-0000-0000-0000-0000-FD2BCCCCXXXX | read | label of custom command |
+| SSH_CTRL | FD2B-4448-AA0F-4A15-A62F-EB0BE77A000A | write, notify | SSH tunnel control (CONNECT / DISCONNECT) |
+| SSH_RX | FD2B-4448-AA0F-4A15-A62F-EB0BE77A000B | write | SSH data from client to Pi (raw binary, 512-byte chunks) |
+| SSH_TX | FD2B-4448-AA0F-4A15-A62F-EB0BE77A000C | notify | SSH data from Pi to client (raw binary, 512-byte chunks) |
 
 
 ### Input and Output format
@@ -216,6 +279,9 @@ Service uuid: FD2B-4448-AA0F-4A15-A62F-EB0BE77A0000
 | CUSTOM_COMMAND_NOTIFY | subcontract in 20 btyes, ended in "&#&" |
 | CUSTOM_INFO_LABEL | a custom info label (FD2BCCCA1234) will have a corresponding value (FD2BCCCB1234) |
 | CUSTOM_COMMAND_LABEL | all custom commands with be broadcast in uuid "FD2BCCCCXXXX" |
+| SSH_CTRL | Write `CONNECT` to open tunnel to sshd. Server notifies `OK` on success, `ERR:<reason>` on failure. Write `DISCONNECT` to close; server notifies `CLOSED`. |
+| SSH_RX | Raw binary SSH data written by the client, forwarded to sshd. Max 512 bytes per write. |
+| SSH_TX | Raw binary SSH data from sshd, sent to client as BLE notifications. Max 512 bytes per notification. |
 
 
 
