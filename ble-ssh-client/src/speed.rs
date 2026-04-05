@@ -3,6 +3,7 @@ use std::sync::Arc;
 use std::time::Instant;
 
 /// Tracks bytes transferred and computes real-time speed.
+#[allow(dead_code)]
 pub struct SpeedTracker {
     tx_bytes: Arc<AtomicU64>,
     rx_bytes: Arc<AtomicU64>,
@@ -12,6 +13,7 @@ pub struct SpeedTracker {
     last_time: std::sync::Mutex<Instant>,
 }
 
+#[allow(dead_code)]
 impl SpeedTracker {
     pub fn new() -> Arc<Self> {
         let now = Instant::now();
@@ -66,6 +68,7 @@ impl SpeedTracker {
     }
 }
 
+#[allow(dead_code)]
 pub fn format_bytes(bytes_per_sec: f64) -> String {
     if bytes_per_sec >= 1024.0 * 1024.0 {
         format!("{:.1} MB/s", bytes_per_sec / (1024.0 * 1024.0))
@@ -76,6 +79,7 @@ pub fn format_bytes(bytes_per_sec: f64) -> String {
     }
 }
 
+#[allow(dead_code)]
 pub fn format_total(bytes: u64) -> String {
     if bytes >= 1024 * 1024 {
         format!("{:.1} MB", bytes as f64 / (1024.0 * 1024.0))

@@ -35,6 +35,7 @@ pub const CUSTOM_COMMAND_NOTIFY: &str = "FD2B4448AA0F4A15A62FEB0BE77A0009";
 pub const SSH_CTRL: &str = "FD2B4448AA0F4A15A62FEB0BE77A000A";
 pub const SSH_RX: &str = "FD2B4448AA0F4A15A62FEB0BE77A000B";
 pub const SSH_TX: &str = "FD2B4448AA0F4A15A62FEB0BE77A000C";
+pub const SSH_USERNAME: &str = "FD2B4448AA0F4A15A62FEB0BE77A000D";
 
 // Custom info/command UUID prefixes (8 hex chars, appended with guid4(index) = 12 chars total)
 pub const CUSTOM_INFO_LABEL_PREFIX: &str = "FD2BCCCA";
