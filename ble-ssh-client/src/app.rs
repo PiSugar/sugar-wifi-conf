@@ -21,7 +21,6 @@ use crate::tunnel;
 #[derive(Debug, Clone)]
 pub enum UiMsg {
     DeviceFound { id: String, name: String },
-    IpRead { id: String, ip: String },
     SshUser { id: String, user: String },
     Connecting { id: String },
     TunnelUp { id: String, port: u16 },
@@ -42,7 +41,6 @@ pub enum Cmd {
 
 struct DeviceInfo {
     name: String,
-    ip: Option<String>,
     ssh_user: Option<String>,
     connecting: bool,
     tunnel_port: Option<u16>,
@@ -122,19 +120,11 @@ pub fn run() {
                             id,
                             DeviceInfo {
                                 name,
-                                ip: None,
                                 ssh_user: None,
                                 connecting: false,
                                 tunnel_port: None,
                             },
                         ));
-                        menu_dirty = true;
-                    }
-                }
-                UiMsg::IpRead { id, ip } => {
-                    if let Some((_, info)) = state.devices.iter_mut().find(|(did, _)| *did == id) {
-                        log::info!("IP for {}: {}", info.name, ip);
-                        info.ip = Some(ip);
                         menu_dirty = true;
                     }
                 }
@@ -340,13 +330,9 @@ fn build_menu(state: &AppState) -> Menu {
             ));
         } else {
             // Disconnected: no checkmark, clickable
-            let text = match &info.ip {
-                Some(ip) => format!("{} ({})", info.name, ip),
-                None => info.name.clone(),
-            };
             let _ = menu.append(&CheckMenuItem::with_id(
                 MenuId::new(&format!("d:{}", id)),
-                &text,
+                &info.name,
                 true,
                 false,
                 None,
@@ -437,16 +423,10 @@ async fn worker(ui_q: Arc<Mutex<VecDeque<UiMsg>>>, mut cmd_rx: mpsc::UnboundedRe
 
                             // Ensure BLE connected
                             if !peripheral.is_connected().await.unwrap_or(false) {
-                                if let Err(e) = ble::connect_and_read_ip(&peripheral).await {
+                                if let Err(e) = ble::ble_connect(&peripheral).await {
                                     send_ui(&ui_q, UiMsg::Err(format!("Connect: {}", e)));
                                     continue;
                                 }
-                            }
-
-                            // Read IP for proxy fallback
-                            let ip = ble::read_ip(&peripheral).await;
-                            if let Some(ref ip_str) = ip {
-                                send_ui(&ui_q, UiMsg::IpRead { id: id.clone(), ip: ip_str.clone() });
                             }
 
                             match BleTunnel::from_connected(peripheral.clone(), speed.clone()).await {
@@ -457,9 +437,8 @@ async fn worker(ui_q: Arc<Mutex<VecDeque<UiMsg>>>, mut cmd_rx: mpsc::UnboundedRe
 
                                     let tun = tunnel.clone();
                                     let spd = speed.clone();
-                                    let ip_clone = ip.clone();
                                     let handle = tokio::spawn(async move {
-                                        if let Err(e) = tunnel::run_device_proxy(port, ip_clone, Some(tun), spd).await {
+                                        if let Err(e) = tunnel::run_device_proxy(port, tun, spd).await {
                                             log::error!("Proxy on port {}: {}", port, e);
                                         }
                                     });
@@ -539,20 +518,16 @@ async fn do_scan(
             peripheral: dev.peripheral.clone(),
         });
 
-        // Read IP and SSH username (sequential to avoid BLE congestion)
-        match ble::connect_and_read_ip(&dev.peripheral).await {
-            Ok(Some(ip)) => {
-                send_ui(&ui_q, UiMsg::IpRead { id: id.clone(), ip });
-            }
-            Ok(None) => {
-                log::info!("No IP for {}", id);
+        // Connect and read SSH username
+        match ble::ble_connect(&dev.peripheral).await {
+            Ok(()) => {
+                if let Some(user) = ble::read_ssh_username(&dev.peripheral).await {
+                    send_ui(&ui_q, UiMsg::SshUser { id, user });
+                }
             }
             Err(e) => {
-                log::warn!("IP read error for {}: {}", id, e);
+                log::warn!("Connect error for {}: {}", id, e);
             }
-        }
-        if let Some(user) = ble::read_ssh_username(&dev.peripheral).await {
-            send_ui(&ui_q, UiMsg::SshUser { id, user });
         }
     }
 

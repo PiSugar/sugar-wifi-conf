@@ -114,7 +114,7 @@ sudo systemctl restart sugar-wifi-config
 
 ### SSH over BLE tunnel
 
-The Rust version includes a built-in SSH tunnel that lets you SSH into the Pi through the BLE connection — no WiFi or IP address required. A macOS command-line client is provided in `/ble-ssh-client`.
+The Rust version includes a built-in SSH tunnel that lets you SSH into the Pi through the BLE connection — no WiFi or IP address required. A macOS menu bar client is provided in `/ble-ssh-client`.
 
 #### Build the client (macOS)
 
@@ -127,50 +127,24 @@ cargo build --release
 #### Usage
 
 ```bash
-# Auto mode: scan BLE, select device interactively, prefer IP when reachable
+# Launch the menu bar app — scans for BLE devices automatically
 ble-ssh
-
-# Specify a known IP (still uses BLE as fallback)
-ble-ssh --ip 192.168.1.100
-
-# IP-only mode (no BLE scan)
-ble-ssh --ip 192.168.1.100 --no-ble
-
-# Force BLE tunnel even when IP is reachable
-ble-ssh --force-ble
-
-# Custom local port and scan timeout
-ble-ssh --port 2222 --scan-timeout 15
 ```
 
-When multiple devices are found, an interactive picker is shown:
-```
-  📱 Found: pisugar-a
-  📱 Found: pisugar-b
-
-? Select device
-> pisugar-a (IP: 192.168.1.100)
-  pisugar-b (BLE only)
-
-? Connection mode
-> Auto (prefer IP, BLE fallback)
-  Force BLE
-```
+Click a discovered device to connect. Each device gets a unique local port starting from 2222.
 
 Then connect in another terminal:
 ```bash
 ssh pi@localhost -p 2222
 ```
 
-The client displays real-time transfer speed while the tunnel is active.
-
 #### How it works
 
-1. The client scans for the PiSugar BLE device and connects.
-2. For each SSH connection, the client sends `CONNECT` via SSH_CTRL. The server opens a TCP connection to local sshd (127.0.0.1:22) and replies `OK`.
-3. SSH data flows bidirectionally: client → SSH_RX → sshd, and sshd → SSH_TX → client.
-4. When the SSH session ends, `DISCONNECT` is sent and the server replies `CLOSED`.
-5. If the Pi's IP is reachable, the client bridges directly over TCP for better speed; otherwise it falls back to BLE.
+1. The client scans for PiSugar BLE devices and shows them in the menu bar.
+2. Click a device to connect — the client establishes a BLE tunnel.
+3. For each SSH connection, the client sends `CONNECT` via SSH_CTRL. The server opens a TCP connection to local sshd (127.0.0.1:22) and replies `OK`.
+4. SSH data flows bidirectionally: client → SSH_RX → sshd, and sshd → SSH_TX → client.
+5. When the SSH session ends, `DISCONNECT` is sent and the server replies `CLOSED`.
 
 ### Optional Parameters (legacy Node.js)
 ```

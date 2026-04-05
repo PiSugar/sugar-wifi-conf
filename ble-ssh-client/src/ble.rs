@@ -93,8 +93,8 @@ pub async fn scan_devices(
     Ok(())
 }
 
-/// Connect to a device and read its IP address.
-pub async fn connect_and_read_ip(peripheral: &Peripheral) -> Result<Option<String>, String> {
+/// Connect to a BLE device and discover its services.
+pub async fn ble_connect(peripheral: &Peripheral) -> Result<(), String> {
     // Disconnect stale first
     let _ = tokio::time::timeout(Duration::from_secs(3), peripheral.disconnect()).await;
     tokio::time::sleep(Duration::from_millis(200)).await;
@@ -109,7 +109,7 @@ pub async fn connect_and_read_ip(peripheral: &Peripheral) -> Result<Option<Strin
         .map_err(|_| "Discovery timeout (15s)".to_string())?
         .map_err(|e| format!("Discovery: {}", e))?;
 
-    Ok(read_ip(peripheral).await)
+    Ok(())
 }
 
 fn find_char(chars: &[Characteristic], uuid_hex: &str) -> Result<Characteristic, String> {
@@ -119,22 +119,6 @@ fn find_char(chars: &[Characteristic], uuid_hex: &str) -> Result<Characteristic,
         .find(|c| c.uuid == target)
         .cloned()
         .ok_or_else(|| format!("Characteristic {} not found", uuid_hex))
-}
-
-/// Read the IP_ADDRESS characteristic.
-pub async fn read_ip(peripheral: &Peripheral) -> Option<String> {
-    let chars: Vec<_> = peripheral.characteristics().into_iter().collect();
-    if let Ok(c) = find_char(&chars, suuid::IP_ADDRESS) {
-        if let Ok(Ok(data)) =
-            tokio::time::timeout(Duration::from_secs(5), peripheral.read(&c)).await
-        {
-            let ip = String::from_utf8_lossy(&data).trim().to_string();
-            if !ip.is_empty() {
-                return Some(ip);
-            }
-        }
-    }
-    None
 }
 
 /// Read the SSH_USERNAME characteristic.
