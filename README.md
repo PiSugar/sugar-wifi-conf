@@ -27,9 +27,9 @@ If you don't have wechat, you can use web-bluetooth to connect to your pi. Make 
   <img width="670" src="https://raw.githubusercontent.com/PiSugar/sugar-wifi-conf/master/image/miniapp-demo-en-fix2.jpg">
 </p>
 
-### Install (Rust version, recommended)
+### Install
 
-The Rust version is a rewrite with lower resource usage and faster startup. Source code is in the `/rust` directory. The original Node.js version is in `/node`.
+Source code is in the `/rust` directory.
 
 ```
 # Build and install from source on the Pi
@@ -46,12 +46,6 @@ Or use the install script:
 ```
 cd rust && sudo bash install.sh
 ```
-
-### Install (Node.js version, legacy)
-```
-curl https://cdn.pisugar.com/PiSugar-wificonfig/script/install.sh | sudo bash
-```
-The script will add sugar-wifi-conf as a systemd service so that it can run on startup
 
 ### Usage
 
@@ -145,16 +139,6 @@ ssh pi@localhost -p 2222
 3. For each SSH connection, the client sends `CONNECT` via SSH_CTRL. The server opens a TCP connection to local sshd (127.0.0.1:22) and replies `OK`.
 4. SSH data flows bidirectionally: client → SSH_RX → sshd, and sshd → SSH_TX → client.
 5. When the SSH session ends, `DISCONNECT` is sent and the server replies `CLOSED`.
-
-### Optional Parameters (legacy Node.js)
-```
-
-# edit /etc/systemd/system/sugar-wifi-config.service to append parameters to execute path 
-# param 1: key 
-# param 2: path to custom config file
-# example: 
-sudo bash /opt/sugar-wifi-config/run.sh pisugar /opt/sugar-wifi-config/custom_config.json
-```
 
 ### Custom configuration
 

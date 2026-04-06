@@ -18,9 +18,9 @@ PiSugar APP / 微信小程序 请扫描上方二维码获取。
 你也可以使用web蓝牙来连接，请确保你的设备和浏览器支持web-bluetooth api. (已在MacOS和Android的chrome浏览器上测试，iOS可使用[WebBLE](https://apps.apple.com/us/app/webble/id1193531073)浏览器) 使用chrome打开[web蓝牙页面](https://www.pisugar.com/sugar-wifi-conf)进行连接。源码详见web-bluetooth-client文件夹。
 
 
-### 安装（Rust 版本，推荐）
+### 安装
 
-Rust 版本重写，资源占用更低，启动更快。源码在 `/rust` 目录。
+Rust 版本，资源占用更低，启动更快。源码在 `/rust` 目录。
 
 ```
 # 在树莓派上编译安装
@@ -38,20 +38,11 @@ sudo cp ../custom_config.json /opt/sugar-wifi-config/
 cd rust && sudo bash install.sh
 ```
 
-### 安装（Node.js 版本，旧版）
-```
-curl https://cdn.pisugar.com/PiSugar-wificonfig/script/install.sh | sudo bash
-
-# the script will add sugar-wifi-conf to /etc/rc.local so that it can run on startup
-```
-
 ### 可选参数
 ```
 # 可修改 /etc/systemd/system/sugar-wifi-config.service 文件改变运行参数
-# 第一个参数为key
-# 第二个参数是自定义配置json文件地址
 # 例如：
-sudo bash /opt/sugar-wifi-config/run.sh pisugar /opt/sugar-wifi-config/custom_config.json
+sugar-wifi-conf serve --name pisugar --key mykey --config /opt/sugar-wifi-config/custom_config.json
 ```
 
 安装完成后重启树莓派。进入PiSugar APP的Wifi Config页面或者使用微信扫描二维码进入小程序，即可控制树莓派。
