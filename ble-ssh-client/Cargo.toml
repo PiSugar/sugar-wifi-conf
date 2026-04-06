@@ -17,3 +17,5 @@ log = "0.4"
 env_logger = "0.11"
 tray-icon = "0.22"
 tao = "0.35"
+ctrlc = { version = "3", features = ["termination"] }
+once_cell = "1"

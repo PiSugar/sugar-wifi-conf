@@ -2,8 +2,8 @@ use std::collections::{HashMap, VecDeque};
 use std::sync::{Arc, Mutex};
 use std::time::{Duration, Instant};
 
-use btleplug::api::Peripheral as _;
-use btleplug::platform::Peripheral;
+use btleplug::api::{Central as _, Peripheral as _};
+use btleplug::platform::{Adapter, Peripheral};
 use tao::event_loop::{ControlFlow, EventLoopBuilder};
 use tray_icon::menu::{CheckMenuItem, Menu, MenuEvent, MenuItem, MenuId, PredefinedMenuItem, Submenu};
 use tray_icon::TrayIconBuilder;
@@ -60,6 +60,45 @@ impl AppState {
     }
 }
 
+// ── Cleanup State (shared for signal/panic handlers) ──
+
+struct CleanupState {
+    adapter: Option<Adapter>,
+    peripherals: Vec<Peripheral>,
+    rt: Option<Arc<tokio::runtime::Runtime>>,
+}
+
+static CLEANUP: once_cell::sync::Lazy<Mutex<CleanupState>> =
+    once_cell::sync::Lazy::new(|| {
+        Mutex::new(CleanupState {
+            adapter: None,
+            peripherals: Vec::new(),
+            rt: None,
+        })
+    });
+
+/// Best-effort cleanup: stop scanning and disconnect all known peripherals.
+fn do_cleanup() {
+    let mut state = match CLEANUP.lock() {
+        Ok(s) => s,
+        Err(poisoned) => poisoned.into_inner(),
+    };
+    let rt = match state.rt.take() {
+        Some(rt) => rt,
+        None => return,
+    };
+    if let Some(adapter) = state.adapter.take() {
+        let _ = rt.block_on(adapter.stop_scan());
+        log::info!("[cleanup] stopped BLE scan");
+    }
+    for p in state.peripherals.drain(..) {
+        if rt.block_on(async { p.is_connected().await.unwrap_or(false) }) {
+            let _ = rt.block_on(p.disconnect());
+            log::info!("[cleanup] disconnected peripheral");
+        }
+    }
+}
+
 // ── Entry Point ───────────────────────────────────────
 
 pub fn run() {
@@ -69,6 +108,25 @@ pub fn run() {
             .build()
             .expect("Failed to create tokio runtime"),
     );
+
+    // Store runtime in cleanup state so signal/panic handlers can use it
+    CLEANUP.lock().unwrap().rt = Some(rt.clone());
+
+    // Register ctrlc (SIGINT/SIGTERM) handler
+    ctrlc::set_handler(move || {
+        log::info!("Signal received, cleaning up...");
+        do_cleanup();
+        std::process::exit(0);
+    })
+    .expect("Failed to set signal handler");
+
+    // Register panic hook
+    let default_hook = std::panic::take_hook();
+    std::panic::set_hook(Box::new(move |info| {
+        log::error!("Panic: {}", info);
+        do_cleanup();
+        default_hook(info);
+    }));
 
     let event_loop = EventLoopBuilder::<()>::with_user_event().build();
     let (cmd_tx, cmd_rx) = mpsc::unbounded_channel::<Cmd>();
@@ -387,6 +445,9 @@ async fn worker(ui_q: Arc<Mutex<VecDeque<UiMsg>>>, mut cmd_rx: mpsc::UnboundedRe
         }
     };
 
+    // Register adapter in cleanup state for signal/panic handlers
+    CLEANUP.lock().unwrap().adapter = Some(adapter.clone());
+
     let mut peripherals: HashMap<String, Peripheral> = HashMap::new();
     let mut connections: HashMap<String, ConnectedDevice> = HashMap::new();
     let mut next_port: u16 = 2222;
@@ -457,9 +518,17 @@ async fn worker(ui_q: Arc<Mutex<VecDeque<UiMsg>>>, mut cmd_rx: mpsc::UnboundedRe
                         }
                     }
                     Cmd::Quit => {
+                        log::info!("Quit: cleaning up...");
+                        let _ = adapter.stop_scan().await;
                         for (_, conn) in connections.drain() {
                             conn.proxy_handle.abort();
+                            conn.tunnel.close_tunnel().await;
                             conn.tunnel.disconnect().await;
+                        }
+                        for (_, p) in peripherals.drain() {
+                            if p.is_connected().await.unwrap_or(false) {
+                                let _ = p.disconnect().await;
+                            }
                         }
                         break;
                     }
@@ -468,8 +537,9 @@ async fn worker(ui_q: Arc<Mutex<VecDeque<UiMsg>>>, mut cmd_rx: mpsc::UnboundedRe
             Some(result) = scan_rx.recv() => {
                 match result {
                     ScanResult::Device { id, name: _, peripheral } => {
+                        // Register peripheral in cleanup state
+                        CLEANUP.lock().unwrap().peripherals.push(peripheral.clone());
                         peripherals.insert(id.clone(), peripheral);
-                        // DeviceFound event is sent from the scan task directly
                     }
                     ScanResult::Done => {}
                 }
@@ -518,12 +588,14 @@ async fn do_scan(
             peripheral: dev.peripheral.clone(),
         });
 
-        // Connect and read SSH username
+        // Connect, read SSH username, then disconnect (we only need metadata now)
         match ble::ble_connect(&dev.peripheral).await {
             Ok(()) => {
                 if let Some(user) = ble::read_ssh_username(&dev.peripheral).await {
                     send_ui(&ui_q, UiMsg::SshUser { id, user });
                 }
+                // Disconnect after reading metadata — will reconnect on user Connect
+                let _ = dev.peripheral.disconnect().await;
             }
             Err(e) => {
                 log::warn!("Connect error for {}: {}", id, e);

@@ -43,6 +43,10 @@ pub async fn scan_devices(
 ) -> Result<(), String> {
     let service_uuid = suuid::parse_uuid(suuid::SERVICE_ID);
 
+    // Stop any stale scan from a previous run that didn't clean up
+    let _ = adapter.stop_scan().await;
+    tokio::time::sleep(Duration::from_millis(200)).await;
+
     adapter
         .start_scan(ScanFilter {
             services: vec![service_uuid],
@@ -65,7 +69,10 @@ pub async fn scan_devices(
         }
 
         match tokio::time::timeout(remaining.min(Duration::from_millis(200)), events.next()).await {
-            Ok(Some(CentralEvent::DeviceDiscovered(id))) => {
+            // Handle both Discovered and Updated — on macOS, CoreBluetooth may
+            // fire DeviceUpdated instead of DeviceDiscovered for cached devices.
+            Ok(Some(CentralEvent::DeviceDiscovered(id)))
+            | Ok(Some(CentralEvent::DeviceUpdated(id))) => {
                 if let Ok(p) = adapter.peripheral(&id).await {
                     if let Ok(Some(props)) = p.properties().await {
                         if props.services.contains(&service_uuid) {
