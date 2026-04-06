@@ -5,6 +5,16 @@ on:
     tags:
       - "v*"
   workflow_dispatch:
+    inputs:
+      create_release:
+        description: "Create a prerelease from the selected branch"
+        required: false
+        default: false
+        type: boolean
+      release_tag:
+        description: "Optional tag for manual release testing"
+        required: false
+        type: string
 
 permissions:
   contents: write
@@ -51,12 +61,32 @@ jobs:
   release:
     name: Create Release
     needs: build
-    if: startsWith(github.ref, 'refs/tags/')
+    if: startsWith(github.ref, 'refs/tags/') || (github.event_name == 'workflow_dispatch' && inputs.create_release)
     runs-on: ubuntu-latest
 
     steps:
       - name: Checkout
         uses: actions/checkout@v4
+
+      - name: Resolve release metadata
+        id: meta
+        run: |
+          if [[ "${GITHUB_REF}" == refs/tags/* ]]; then
+            echo "tag=${GITHUB_REF#refs/tags/}" >> "$GITHUB_OUTPUT"
+            echo "name=${GITHUB_REF#refs/tags/}" >> "$GITHUB_OUTPUT"
+            echo "prerelease=false" >> "$GITHUB_OUTPUT"
+            echo "draft=false" >> "$GITHUB_OUTPUT"
+          else
+            SAFE_REF="${GITHUB_REF_NAME//\//-}"
+            TAG="${{ inputs.release_tag }}"
+            if [[ -z "$TAG" ]]; then
+              TAG="test-${SAFE_REF}-${GITHUB_RUN_NUMBER}"
+            fi
+            echo "tag=$TAG" >> "$GITHUB_OUTPUT"
+            echo "name=Test Release $TAG" >> "$GITHUB_OUTPUT"
+            echo "prerelease=true" >> "$GITHUB_OUTPUT"
+            echo "draft=true" >> "$GITHUB_OUTPUT"
+          fi
 
       - name: Download all artifacts
         uses: actions/download-artifact@v4
@@ -75,6 +105,11 @@ jobs:
       - name: Create GitHub Release
         uses: softprops/action-gh-release@v2
         with:
+          tag_name: ${{ steps.meta.outputs.tag }}
+          name: ${{ steps.meta.outputs.name }}
+          target_commitish: ${{ github.sha }}
+          prerelease: ${{ steps.meta.outputs.prerelease }}
+          draft: ${{ steps.meta.outputs.draft }}
           generate_release_notes: true
           files: |
             release/sugar-wifi-conf-aarch64
