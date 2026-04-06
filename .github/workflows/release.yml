@@ -2,6 +2,8 @@ name: Build and Release
 
 on:
   push:
+    branches:
+      - feature/refactor-rust
     tags:
       - "v*"
   workflow_dispatch:
