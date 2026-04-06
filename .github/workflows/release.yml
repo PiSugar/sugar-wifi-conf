@@ -45,6 +45,8 @@ jobs:
 
       - name: Install Rust toolchain
         uses: dtolnay/rust-toolchain@stable
+        with:
+          toolchain: stable
 
       - name: Install cross
         run: cargo install cross --git https://github.com/cross-rs/cross
