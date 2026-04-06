@@ -5,6 +5,7 @@ NPM_REGISTRY="https://registry.npmmirror.com"
 REPO_URL="https://gitee.com/jdaie/sugar-wifi-config.git"
 NODE_BINARY_INSTALL_URL="https://cdn.pisugar.com/PiSugar-wificonfig/script/node-binary/install-node-v20.19.5.sh"
 INSTALL_DIR="/opt/sugar-wifi-config"
+BRANCH="support/node"
 
 # Function to check if a command exists
 command_exists() {
@@ -159,7 +160,7 @@ fi
 
 echo "Cloning $REPO_URL to $INSTALL_DIR..."
 mkdir -p $INSTALL_DIR
-git clone $REPO_URL $INSTALL_DIR --depth 1
+git clone $REPO_URL $INSTALL_DIR -b $BRANCH --depth 1
 cd $INSTALL_DIR
 git pull
 
