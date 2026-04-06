@@ -35,9 +35,6 @@ jobs:
           - target: armv7-unknown-linux-gnueabihf
             suffix: armv7
             pkg_config_path: /usr/lib/arm-linux-gnueabihf/pkgconfig
-          - target: arm-unknown-linux-gnueabihf
-            suffix: arm
-            pkg_config_path: /usr/lib/arm-linux-gnueabihf/pkgconfig
 
     steps:
       - name: Checkout
@@ -109,7 +106,6 @@ jobs:
           mkdir -p release
           cp artifacts/sugar-wifi-conf-aarch64/sugar-wifi-conf-aarch64 release/
           cp artifacts/sugar-wifi-conf-armv7/sugar-wifi-conf-armv7 release/
-          cp artifacts/sugar-wifi-conf-arm/sugar-wifi-conf-arm release/
           cp custom_config.json release/
           chmod +x release/sugar-wifi-conf-*
 
@@ -125,5 +121,4 @@ jobs:
           files: |
             release/sugar-wifi-conf-aarch64
             release/sugar-wifi-conf-armv7
-            release/sugar-wifi-conf-arm
             release/custom_config.json

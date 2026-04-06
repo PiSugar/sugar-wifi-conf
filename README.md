@@ -46,11 +46,15 @@ curl -sSL https://raw.githubusercontent.com/PiSugar/sugar-wifi-conf/master/insta
 
 | Model | Architecture | Binary |
 | --- | --- | --- |
-| Pi Zero, Zero W, Pi 1 | ARMv6 (armv6l) | `sugar-wifi-conf-arm` |
 | Pi 2, 3, 4, Zero 2 W (32-bit OS) | ARMv7 (armv7l) | `sugar-wifi-conf-armv7` |
 | Pi 3, 4, 5, Zero 2 W (64-bit OS) | AArch64 (aarch64) | `sugar-wifi-conf-aarch64` |
 
 The install script automatically detects your architecture and downloads the correct binary.
+
+> **Pi Zero / Zero W / Pi 1 (ARMv6)**: No pre-built binary. Please build from source:
+> ```bash
+> cd rust && sudo bash install.sh
+> ```
 
 #### Build from source
 
