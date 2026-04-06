@@ -78,6 +78,7 @@ static CLEANUP: once_cell::sync::Lazy<Mutex<CleanupState>> =
     });
 
 /// Best-effort cleanup: stop scanning and disconnect all known peripherals.
+/// Safe to call from inside or outside a tokio runtime.
 fn do_cleanup() {
     let mut state = match CLEANUP.lock() {
         Ok(s) => s,
@@ -87,15 +88,31 @@ fn do_cleanup() {
         Some(rt) => rt,
         None => return,
     };
-    if let Some(adapter) = state.adapter.take() {
-        let _ = rt.block_on(adapter.stop_scan());
-        log::info!("[cleanup] stopped BLE scan");
-    }
-    for p in state.peripherals.drain(..) {
-        if rt.block_on(async { p.is_connected().await.unwrap_or(false) }) {
-            let _ = rt.block_on(p.disconnect());
-            log::info!("[cleanup] disconnected peripheral");
+    let adapter = state.adapter.take();
+    let peripherals: Vec<Peripheral> = state.peripherals.drain(..).collect();
+    drop(state); // release the lock before blocking
+
+    // If we're already inside a tokio runtime (e.g. panic in an async task),
+    // we can't call block_on directly — run cleanup on a dedicated thread.
+    let cleanup = move || {
+        if let Some(adapter) = adapter {
+            let _ = rt.block_on(adapter.stop_scan());
+            log::info!("[cleanup] stopped BLE scan");
         }
+        for p in peripherals {
+            if rt.block_on(async { p.is_connected().await.unwrap_or(false) }) {
+                let _ = rt.block_on(p.disconnect());
+                log::info!("[cleanup] disconnected peripheral");
+            }
+        }
+    };
+
+    if tokio::runtime::Handle::try_current().is_ok() {
+        // We're inside a runtime — spawn a thread so block_on doesn't panic
+        let handle = std::thread::spawn(cleanup);
+        let _ = handle.join();
+    } else {
+        cleanup();
     }
 }
 
@@ -481,18 +498,30 @@ async fn worker(ui_q: Arc<Mutex<VecDeque<UiMsg>>>, mut cmd_rx: mpsc::UnboundedRe
                             send_ui(&ui_q, UiMsg::Connecting { id: id.clone() });
 
                             let speed = SpeedTracker::new();
+                            let q = ui_q.clone();
+                            let id2 = id.clone();
 
-                            // Ensure BLE connected
-                            if !peripheral.is_connected().await.unwrap_or(false) {
-                                if let Err(e) = ble::ble_connect(&peripheral).await {
-                                    send_ui(&ui_q, UiMsg::Err(format!("Connect: {}", e)));
-                                    continue;
+                            // Spawn in a separate task so btleplug panics
+                            // (known CoreBluetooth race) don't crash the app.
+                            // Always do fresh ble_connect right before from_connected
+                            // in one shot — btleplug on macOS only delivers notifications
+                            // when subscribe+pump happen in the same task context
+                            // as the connection.
+                            let conn_result = tokio::spawn(async move {
+                                ble::ble_connect(&peripheral).await?;
+
+                                // Read SSH username while connected
+                                if let Some(user) = ble::read_ssh_username(&peripheral).await {
+                                    send_ui(&q, UiMsg::SshUser { id: id2, user });
                                 }
-                            }
 
-                            match BleTunnel::from_connected(peripheral.clone(), speed.clone()).await {
-                                Ok(tunnel) => {
-                                    let tunnel = Arc::new(tunnel);
+                                let tunnel = BleTunnel::from_connected(peripheral.clone(), speed.clone()).await?;
+                                let tunnel = Arc::new(tunnel);
+                                Ok::<_, String>((tunnel, speed))
+                            }).await;
+
+                            match conn_result {
+                                Ok(Ok((tunnel, speed))) => {
                                     let port = next_port;
                                     next_port += 1;
 
@@ -511,8 +540,15 @@ async fn worker(ui_q: Arc<Mutex<VecDeque<UiMsg>>>, mut cmd_rx: mpsc::UnboundedRe
                                     });
                                     send_ui(&ui_q, UiMsg::TunnelUp { id, port });
                                 }
-                                Err(e) => {
-                                    send_ui(&ui_q, UiMsg::Err(format!("Tunnel: {}", e)));
+                                Ok(Err(e)) => {
+                                    send_ui(&ui_q, UiMsg::Err(format!("Connect: {}", e)));
+                                    send_ui(&ui_q, UiMsg::TunnelDown { id });
+                                }
+                                Err(join_err) => {
+                                    // Task panicked (btleplug CoreBluetooth race)
+                                    log::error!("Connect task panicked: {}", join_err);
+                                    send_ui(&ui_q, UiMsg::Err(format!("Connect: internal BLE error")));
+                                    send_ui(&ui_q, UiMsg::TunnelDown { id });
                                 }
                             }
                         }
@@ -574,7 +610,11 @@ async fn do_scan(
         }
     });
 
-    // Process each device immediately as it streams in
+    // Process each device immediately as it streams in.
+    // Do NOT connect during scan — btleplug on macOS cannot reliably
+    // reconnect to a peripheral after disconnect, and notifications
+    // only work when connect+subscribe happen in the same task.
+    // SSH username will be read during Cmd::Connect instead.
     while let Some(dev) = dev_rx.recv().await {
         let id = dev.id.clone();
         let name = dev.name.clone();
@@ -587,20 +627,6 @@ async fn do_scan(
             name,
             peripheral: dev.peripheral.clone(),
         });
-
-        // Connect, read SSH username, then disconnect (we only need metadata now)
-        match ble::ble_connect(&dev.peripheral).await {
-            Ok(()) => {
-                if let Some(user) = ble::read_ssh_username(&dev.peripheral).await {
-                    send_ui(&ui_q, UiMsg::SshUser { id, user });
-                }
-                // Disconnect after reading metadata — will reconnect on user Connect
-                let _ = dev.peripheral.disconnect().await;
-            }
-            Err(e) => {
-                log::warn!("Connect error for {}: {}", id, e);
-            }
-        }
     }
 
     let _ = result_tx.send(ScanResult::Done);

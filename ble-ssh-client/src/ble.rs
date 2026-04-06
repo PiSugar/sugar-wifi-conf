@@ -178,6 +178,9 @@ impl BleTunnel {
             .await
             .map_err(|e| format!("Subscribe TX: {}", e))?;
 
+        // Let BLE subscriptions settle before sending commands
+        tokio::time::sleep(Duration::from_millis(300)).await;
+
         let (ctrl_tx, ctrl_rx) = mpsc::channel::<String>(16);
         let (data_tx, data_rx) = mpsc::channel::<Vec<u8>>(512);
 
@@ -194,18 +197,22 @@ impl BleTunnel {
                     return;
                 }
             };
-            log::info!("Notification pump started");
+            log::info!("Notification pump started (CTRL={}, TX={})", ctrl_uuid, tx_uuid);
             while let Some(notif) = stream.next().await {
                 if notif.uuid == tx_uuid {
+                    log::debug!("BLE notif TX: {} bytes", notif.value.len());
                     spd.add_rx(notif.value.len() as u64);
                     if data_tx.send(notif.value).await.is_err() {
                         break;
                     }
                 } else if notif.uuid == ctrl_uuid {
                     let msg = String::from_utf8_lossy(&notif.value).to_string();
+                    log::info!("BLE notif CTRL: '{}'", msg);
                     if ctrl_tx.send(msg).await.is_err() {
                         break;
                     }
+                } else {
+                    log::debug!("BLE notif unknown UUID: {}", notif.uuid);
                 }
             }
             log::info!("Notification pump ended");
@@ -233,10 +240,12 @@ impl BleTunnel {
             while c.try_recv().is_ok() {}
         }
 
+        log::info!("Writing CONNECT to SSH_CTRL...");
         self.peripheral
             .write(&self.ssh_ctrl, b"CONNECT", WriteType::WithResponse)
             .await
             .map_err(|e| format!("Write CONNECT: {}", e))?;
+        log::info!("CONNECT written, waiting for OK notification...");
 
         let mut ctrl = self.ctrl_rx.lock().await;
         let deadline = tokio::time::Instant::now() + Duration::from_secs(5);

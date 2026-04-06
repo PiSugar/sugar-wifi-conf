@@ -7,7 +7,7 @@ use bluer::gatt::local::{
 use futures::FutureExt;
 use tokio::io::{AsyncReadExt, AsyncWriteExt};
 use tokio::net::TcpStream;
-use tokio::sync::{mpsc, watch, Mutex};
+use tokio::sync::{broadcast, mpsc, watch, Mutex};
 
 use crate::uuid as suuid;
 
@@ -17,15 +17,17 @@ struct TunnelState {
     tcp_tx: Option<tokio::io::WriteHalf<TcpStream>>,
     /// Sender to stop the TCP read task.
     shutdown_tx: Option<tokio::sync::oneshot::Sender<()>>,
+    /// Sender to stop the TCP write task.
+    write_shutdown_tx: Option<tokio::sync::oneshot::Sender<()>>,
 }
 
 /// Build all 3 SSH tunnel characteristics.
 /// Returns (ssh_ctrl, ssh_rx, ssh_tx).
 pub fn build() -> Vec<Characteristic> {
-    // Channel: TCP read data → BLE TX notify (mpsc for reliable ordered delivery)
-    let (ble_tx_sender, ble_tx_receiver) = mpsc::channel::<Vec<u8>>(512);
+    // Channel: TCP read data → BLE TX notify (broadcast so each subscriber
+    // gets its own independent stream — no lock contention between old/new subscribers)
+    let (ble_tx_sender, _) = broadcast::channel::<Vec<u8>>(512);
     let ble_tx_sender = Arc::new(ble_tx_sender);
-    let ble_tx_receiver = Arc::new(Mutex::new(ble_tx_receiver));
 
     // Channel: BLE RX write → TCP write
     let (tcp_write_tx, tcp_write_rx) = mpsc::channel::<Vec<u8>>(256);
@@ -35,6 +37,7 @@ pub fn build() -> Vec<Characteristic> {
     let tunnel = Arc::new(Mutex::new(TunnelState {
         tcp_tx: None,
         shutdown_tx: None,
+        write_shutdown_tx: None,
     }));
 
     // Channel for control responses
@@ -50,7 +53,7 @@ pub fn build() -> Vec<Characteristic> {
             ctrl_notify_rx,
         ),
         build_rx(tcp_write_tx),
-        build_tx(ble_tx_receiver),
+        build_tx(ble_tx_sender.clone()),
     ]
 }
 
@@ -59,7 +62,7 @@ pub fn build() -> Vec<Characteristic> {
 /// Notifies "OK", "ERR:reason", "CLOSED".
 fn build_ctrl(
     tunnel: Arc<Mutex<TunnelState>>,
-    ble_tx_sender: Arc<mpsc::Sender<Vec<u8>>>,
+    ble_tx_sender: Arc<broadcast::Sender<Vec<u8>>>,
     tcp_write_rx: Arc<Mutex<mpsc::Receiver<Vec<u8>>>>,
     ctrl_notify_tx: Arc<watch::Sender<String>>,
     ctrl_notify_rx: watch::Receiver<String>,
@@ -91,6 +94,9 @@ fn build_ctrl(
                                     if let Some(shutdown) = state.shutdown_tx.take() {
                                         let _ = shutdown.send(());
                                     }
+                                    if let Some(shutdown) = state.write_shutdown_tx.take() {
+                                        let _ = shutdown.send(());
+                                    }
                                     state.tcp_tx = None;
                                 }
 
@@ -103,11 +109,14 @@ fn build_ctrl(
 
                                         let (shutdown_tx, shutdown_rx) =
                                             tokio::sync::oneshot::channel();
+                                        let (write_shutdown_tx, write_shutdown_rx) =
+                                            tokio::sync::oneshot::channel();
 
                                         {
                                             let mut state = tunnel.lock().await;
                                             state.tcp_tx = Some(tcp_write);
                                             state.shutdown_tx = Some(shutdown_tx);
+                                            state.write_shutdown_tx = Some(write_shutdown_tx);
                                         }
 
                                         // Spawn: TCP read → BLE TX
@@ -125,9 +134,10 @@ fn build_ctrl(
                                         let ctrl_tx3 = ctrl_tx.clone();
                                         let rx = tcp_write_rx.clone();
                                         tokio::spawn(tcp_write_task(
-                                            tunnel2, rx, ctrl_tx3,
+                                            tunnel2, rx, ctrl_tx3, write_shutdown_rx,
                                         ));
 
+                                        log::info!("SSH tunnel: sending OK");
                                         let _ = ctrl_tx.send("OK".to_string());
                                     }
                                     Err(e) => {
@@ -140,6 +150,9 @@ fn build_ctrl(
                             "DISCONNECT" => {
                                 let mut state = tunnel.lock().await;
                                 if let Some(shutdown) = state.shutdown_tx.take() {
+                                    let _ = shutdown.send(());
+                                }
+                                if let Some(shutdown) = state.write_shutdown_tx.take() {
                                     let _ = shutdown.send(());
                                 }
                                 state.tcp_tx = None;
@@ -165,16 +178,20 @@ fn build_ctrl(
                     log::info!("SSH_CTRL notify subscriber connected");
                     loop {
                         if rx.changed().await.is_err() {
+                            log::info!("SSH_CTRL: watch sender dropped");
                             break;
                         }
                         let msg = rx.borrow_and_update().clone();
                         if msg.is_empty() {
                             continue;
                         }
-                        if notifier.notify(msg.as_bytes().to_vec()).await.is_err() {
+                        log::info!("SSH_CTRL: notifying '{}'", msg);
+                        if let Err(e) = notifier.notify(msg.as_bytes().to_vec()).await {
+                            log::warn!("SSH_CTRL notify error: {:?}", e);
                             break;
                         }
                     }
+                    log::info!("SSH_CTRL notify subscriber disconnected");
                 }
                 .boxed()
             })),
@@ -212,31 +229,40 @@ fn build_rx(tcp_write_tx: mpsc::Sender<Vec<u8>>) -> Characteristic {
 
 /// SSH_TX characteristic: notify.
 /// Sends raw SSH data from sshd → BLE client.
-/// Uses mpsc to guarantee ordered, reliable delivery (no dropped data).
-fn build_tx(ble_tx_receiver: Arc<Mutex<mpsc::Receiver<Vec<u8>>>>) -> Characteristic {
+/// Uses broadcast so each subscriber gets its own independent stream,
+/// avoiding lock contention between old and new BLE connections.
+fn build_tx(ble_tx_sender: Arc<broadcast::Sender<Vec<u8>>>) -> Characteristic {
     Characteristic {
         uuid: suuid::parse_uuid(suuid::SSH_TX),
         notify: Some(CharacteristicNotify {
             notify: true,
             method: CharacteristicNotifyMethod::Fun(Box::new(move |mut notifier| {
-                let rx = ble_tx_receiver.clone();
+                let mut rx = ble_tx_sender.subscribe();
                 async move {
                     log::info!("SSH_TX notify subscriber connected");
-                    let mut rx = rx.lock().await;
-                    while let Some(data) = rx.recv().await {
-                        if data.is_empty() {
-                            continue;
-                        }
-                        // Chunk data for BLE notification (max 512 bytes per notification)
-                        for chunk in data.chunks(512) {
-                            if let Err(e) = notifier.notify(chunk.to_vec()).await {
-                                log::info!("SSH_TX notify error: {:?}, retrying once", e);
-                                // Retry once after short delay
-                                tokio::time::sleep(tokio::time::Duration::from_millis(10)).await;
-                                if notifier.notify(chunk.to_vec()).await.is_err() {
-                                    log::info!("SSH_TX subscriber disconnected");
-                                    return;
+                    loop {
+                        match rx.recv().await {
+                            Ok(data) if !data.is_empty() => {
+                                // Chunk data for BLE notification (max 512 bytes per notification)
+                                for chunk in data.chunks(512) {
+                                    if let Err(e) = notifier.notify(chunk.to_vec()).await {
+                                        log::info!("SSH_TX notify error: {:?}, retrying once", e);
+                                        tokio::time::sleep(tokio::time::Duration::from_millis(10)).await;
+                                        if notifier.notify(chunk.to_vec()).await.is_err() {
+                                            log::info!("SSH_TX subscriber disconnected");
+                                            return;
+                                        }
+                                    }
                                 }
+                            }
+                            Ok(_) => continue,
+                            Err(broadcast::error::RecvError::Closed) => {
+                                log::info!("SSH_TX: broadcast channel closed");
+                                break;
+                            }
+                            Err(broadcast::error::RecvError::Lagged(n)) => {
+                                log::warn!("SSH_TX: subscriber lagged {} messages", n);
+                                continue;
                             }
                         }
                     }
@@ -253,7 +279,7 @@ fn build_tx(ble_tx_receiver: Arc<Mutex<mpsc::Receiver<Vec<u8>>>>) -> Characteris
 /// Task: read from TCP (sshd) and send to BLE TX notifications.
 async fn tcp_read_task(
     mut tcp_read: tokio::io::ReadHalf<TcpStream>,
-    ble_tx: Arc<mpsc::Sender<Vec<u8>>>,
+    ble_tx: Arc<broadcast::Sender<Vec<u8>>>,
     ctrl_tx: Arc<watch::Sender<String>>,
     mut shutdown: tokio::sync::oneshot::Receiver<()>,
 ) {
@@ -272,10 +298,8 @@ async fn tcp_read_task(
                         return;
                     }
                     Ok(n) => {
-                        if ble_tx.send(buf[..n].to_vec()).await.is_err() {
-                            log::info!("SSH tunnel: BLE TX channel closed");
-                            return;
-                        }
+                        // broadcast::send() returns Err if no active receivers — that's OK
+                        let _ = ble_tx.send(buf[..n].to_vec());
                     }
                     Err(e) => {
                         log::error!("SSH tunnel read error: {}", e);
@@ -293,16 +317,30 @@ async fn tcp_write_task(
     tunnel: Arc<Mutex<TunnelState>>,
     rx: Arc<Mutex<mpsc::Receiver<Vec<u8>>>>,
     ctrl_tx: Arc<watch::Sender<String>>,
+    mut shutdown: tokio::sync::oneshot::Receiver<()>,
 ) {
     let mut rx = rx.lock().await;
-    while let Some(data) = rx.recv().await {
-        let mut state = tunnel.lock().await;
-        if let Some(ref mut tcp_tx) = state.tcp_tx {
-            if let Err(e) = tcp_tx.write_all(&data).await {
-                log::error!("SSH tunnel write error: {}", e);
-                let _ = ctrl_tx.send(format!("ERR:{}", e));
-                state.tcp_tx = None;
+    loop {
+        tokio::select! {
+            _ = &mut shutdown => {
+                log::debug!("SSH tunnel write task: shutdown");
                 return;
+            }
+            data = rx.recv() => {
+                match data {
+                    Some(data) => {
+                        let mut state = tunnel.lock().await;
+                        if let Some(ref mut tcp_tx) = state.tcp_tx {
+                            if let Err(e) = tcp_tx.write_all(&data).await {
+                                log::error!("SSH tunnel write error: {}", e);
+                                let _ = ctrl_tx.send(format!("ERR:{}", e));
+                                state.tcp_tx = None;
+                                return;
+                            }
+                        }
+                    }
+                    None => return,
+                }
             }
         }
     }

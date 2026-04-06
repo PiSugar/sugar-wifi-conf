@@ -19,8 +19,18 @@ pub async fn bridge_tcp_ble(
 
     // Phase 1: Open tunnel and verify SSH banner arrives.
     let mut banner_data: Option<Vec<u8>> = None;
+    let mut last_err: Option<String> = None;
     for attempt in 0..5u32 {
-        tunnel.open_tunnel().await?;
+        match tunnel.open_tunnel().await {
+            Ok(()) => {}
+            Err(e) => {
+                log::warn!("Attempt {}: open_tunnel failed: {}, retrying...", attempt, e);
+                last_err = Some(e);
+                tunnel.close_tunnel().await;
+                tokio::time::sleep(Duration::from_millis(500)).await;
+                continue;
+            }
+        }
 
         match tokio::time::timeout(Duration::from_secs(3), tunnel.recv_data()).await {
             Ok(Some(data)) if data.len() >= 4 && data.starts_with(b"SSH-") => {
@@ -64,8 +74,12 @@ pub async fn bridge_tcp_ble(
         }
     }
 
-    let banner =
-        banner_data.ok_or_else(|| "Failed to receive SSH banner after 5 attempts".to_string())?;
+    let banner = banner_data.ok_or_else(|| {
+        format!(
+            "Failed to receive SSH banner after 5 attempts (last error: {})",
+            last_err.as_deref().unwrap_or("banner timeout")
+        )
+    })?;
 
     local_write
         .write_all(&banner)
