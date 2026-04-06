@@ -29,6 +29,31 @@ If you don't have wechat, you can use web-bluetooth to connect to your pi. Make 
 
 ### Install
 
+#### One-liner install (recommended)
+
+Download a pre-built binary and install as a systemd service — no Rust toolchain required:
+
+```bash
+curl -sSL https://raw.githubusercontent.com/PiSugar/sugar-wifi-conf/master/install-bin.sh | sudo bash
+```
+
+To install a specific version:
+```bash
+curl -sSL https://raw.githubusercontent.com/PiSugar/sugar-wifi-conf/master/install-bin.sh | sudo bash -s -- v0.1.0
+```
+
+**Supported Raspberry Pi models:**
+
+| Model | Architecture | Binary |
+| --- | --- | --- |
+| Pi Zero, Zero W, Pi 1 | ARMv6 (armv6l) | `sugar-wifi-conf-arm` |
+| Pi 2, 3, 4, Zero 2 W (32-bit OS) | ARMv7 (armv7l) | `sugar-wifi-conf-armv7` |
+| Pi 3, 4, 5, Zero 2 W (64-bit OS) | AArch64 (aarch64) | `sugar-wifi-conf-aarch64` |
+
+The install script automatically detects your architecture and downloads the correct binary.
+
+#### Build from source
+
 Source code is in the `/rust` directory.
 
 ```

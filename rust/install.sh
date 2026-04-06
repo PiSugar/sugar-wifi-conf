@@ -1,6 +1,13 @@
 #!/bin/bash
 set -e
 
+# ============================================================
+# NOTE: For pre-built binaries (no Rust toolchain needed), use:
+#   curl -sSL https://raw.githubusercontent.com/PiSugar/sugar-wifi-conf/master/install-bin.sh | sudo bash
+#
+# This script builds from source and requires Rust + build deps.
+# ============================================================
+
 REPO_URL="https://github.com/PiSugar/sugar-wifi-conf.git"
 INSTALL_DIR="/opt/sugar-wifi-config"
 SERVICE_NAME="sugar-wifi-config.service"
