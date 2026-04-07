@@ -24,16 +24,25 @@ permissions:
 jobs:
   build:
     name: Build ${{ matrix.suffix }}
-    runs-on: ubuntu-latest
+    runs-on: ${{ matrix.runs_on }}
     strategy:
       fail-fast: false
       matrix:
         include:
           - target: aarch64-unknown-linux-gnu
             suffix: aarch64
+            runs_on: ubuntu-latest
+            build_tool: cross
             pkg_config_path: /usr/lib/aarch64-linux-gnu/pkgconfig
           - target: armv7-unknown-linux-gnueabihf
             suffix: armv7
+            runs_on: ubuntu-latest
+            build_tool: cross
+            pkg_config_path: /usr/lib/arm-linux-gnueabihf/pkgconfig
+          - target: arm-unknown-linux-gnueabihf
+            suffix: armv6
+            runs_on: self-hosted
+            build_tool: cargo
             pkg_config_path: /usr/lib/arm-linux-gnueabihf/pkgconfig
 
     steps:
@@ -44,16 +53,39 @@ jobs:
         uses: dtolnay/rust-toolchain@stable
         with:
           toolchain: stable
+          targets: ${{ matrix.target }}
 
-      - name: Install cross
-        run: cargo install cross --git https://github.com/cross-rs/cross
+      - name: Ensure cross is installed
+        if: matrix.build_tool == 'cross'
+        run: |
+          if command -v cross >/dev/null 2>&1; then
+            cross --version
+          else
+            cargo install cross --git https://github.com/cross-rs/cross
+          fi
+
+      - name: Install armv6 build dependencies
+        if: matrix.build_tool == 'cargo'
+        run: |
+          sudo dpkg --add-architecture armhf
+          sudo apt-get update
+          sudo apt-get install -y gcc-arm-linux-gnueabihf libc6-dev-armhf-cross libdbus-1-dev:armhf pkg-config
 
       - name: Build for ${{ matrix.target }}
+        if: matrix.build_tool == 'cross'
         working-directory: rust
         env:
           PKG_CONFIG_ALLOW_CROSS: "1"
           PKG_CONFIG_PATH: ${{ matrix.pkg_config_path }}
         run: cross build --release --target ${{ matrix.target }}
+
+      - name: Build armv6 for ${{ matrix.target }}
+        if: matrix.build_tool == 'cargo'
+        working-directory: rust
+        env:
+          PKG_CONFIG_ALLOW_CROSS: "1"
+          PKG_CONFIG_PATH: ${{ matrix.pkg_config_path }}
+        run: cargo build --release --target ${{ matrix.target }}
 
       - name: Rename binary
         run: |
@@ -106,6 +138,7 @@ jobs:
           mkdir -p release
           cp artifacts/sugar-wifi-conf-aarch64/sugar-wifi-conf-aarch64 release/
           cp artifacts/sugar-wifi-conf-armv7/sugar-wifi-conf-armv7 release/
+          cp artifacts/sugar-wifi-conf-armv6/sugar-wifi-conf-armv6 release/
           cp custom_config.json release/
           chmod +x release/sugar-wifi-conf-*
 
@@ -121,4 +154,5 @@ jobs:
           files: |
             release/sugar-wifi-conf-aarch64
             release/sugar-wifi-conf-armv7
+            release/sugar-wifi-conf-armv6
             release/custom_config.json
