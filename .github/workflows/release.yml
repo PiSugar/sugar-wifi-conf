@@ -24,7 +24,7 @@ permissions:
 jobs:
   build:
     name: Build ${{ matrix.suffix }}
-    runs-on: ubuntu-latest
+    runs-on: self-hosted
     strategy:
       fail-fast: false
       matrix:
@@ -34,6 +34,9 @@ jobs:
             pkg_config_path: /usr/lib/aarch64-linux-gnu/pkgconfig
           - target: armv7-unknown-linux-gnueabihf
             suffix: armv7
+            pkg_config_path: /usr/lib/arm-linux-gnueabihf/pkgconfig
+          - target: arm-unknown-linux-gnueabihf
+            suffix: armv6
             pkg_config_path: /usr/lib/arm-linux-gnueabihf/pkgconfig
 
     steps:
@@ -45,8 +48,13 @@ jobs:
         with:
           toolchain: stable
 
-      - name: Install cross
-        run: cargo install cross --git https://github.com/cross-rs/cross
+      - name: Ensure cross is installed
+        run: |
+          if command -v cross >/dev/null 2>&1; then
+            cross --version
+          else
+            cargo install cross --git https://github.com/cross-rs/cross
+          fi
 
       - name: Build for ${{ matrix.target }}
         working-directory: rust
@@ -70,7 +78,7 @@ jobs:
     name: Create Release
     needs: build
     if: startsWith(github.ref, 'refs/tags/') || (github.event_name == 'workflow_dispatch' && inputs.create_release)
-    runs-on: ubuntu-latest
+    runs-on: self-hosted
 
     steps:
       - name: Checkout
@@ -106,6 +114,7 @@ jobs:
           mkdir -p release
           cp artifacts/sugar-wifi-conf-aarch64/sugar-wifi-conf-aarch64 release/
           cp artifacts/sugar-wifi-conf-armv7/sugar-wifi-conf-armv7 release/
+          cp artifacts/sugar-wifi-conf-armv6/sugar-wifi-conf-armv6 release/
           cp custom_config.json release/
           chmod +x release/sugar-wifi-conf-*
 
@@ -121,4 +130,5 @@ jobs:
           files: |
             release/sugar-wifi-conf-aarch64
             release/sugar-wifi-conf-armv7
+            release/sugar-wifi-conf-armv6
             release/custom_config.json
