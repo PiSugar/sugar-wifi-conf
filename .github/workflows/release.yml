@@ -1,0 +1,124 @@
+name: Build and Release
+
+on:
+  push:
+    branches:
+      - feature/refactor-rust
+    tags:
+      - "v*"
+  workflow_dispatch:
+    inputs:
+      create_release:
+        description: "Create a prerelease from the selected branch"
+        required: false
+        default: false
+        type: boolean
+      release_tag:
+        description: "Optional tag for manual release testing"
+        required: false
+        type: string
+
+permissions:
+  contents: write
+
+jobs:
+  build:
+    name: Build ${{ matrix.suffix }}
+    runs-on: ubuntu-latest
+    strategy:
+      fail-fast: false
+      matrix:
+        include:
+          - target: aarch64-unknown-linux-gnu
+            suffix: aarch64
+            pkg_config_path: /usr/lib/aarch64-linux-gnu/pkgconfig
+          - target: armv7-unknown-linux-gnueabihf
+            suffix: armv7
+            pkg_config_path: /usr/lib/arm-linux-gnueabihf/pkgconfig
+
+    steps:
+      - name: Checkout
+        uses: actions/checkout@v4
+
+      - name: Install Rust toolchain
+        uses: dtolnay/rust-toolchain@stable
+        with:
+          toolchain: stable
+
+      - name: Install cross
+        run: cargo install cross --git https://github.com/cross-rs/cross
+
+      - name: Build for ${{ matrix.target }}
+        working-directory: rust
+        env:
+          PKG_CONFIG_ALLOW_CROSS: "1"
+          PKG_CONFIG_PATH: ${{ matrix.pkg_config_path }}
+        run: cross build --release --target ${{ matrix.target }}
+
+      - name: Rename binary
+        run: |
+          cp rust/target/${{ matrix.target }}/release/sugar-wifi-conf \
+             sugar-wifi-conf-${{ matrix.suffix }}
+
+      - name: Upload artifact
+        uses: actions/upload-artifact@v4
+        with:
+          name: sugar-wifi-conf-${{ matrix.suffix }}
+          path: sugar-wifi-conf-${{ matrix.suffix }}
+
+  release:
+    name: Create Release
+    needs: build
+    if: startsWith(github.ref, 'refs/tags/') || (github.event_name == 'workflow_dispatch' && inputs.create_release)
+    runs-on: ubuntu-latest
+
+    steps:
+      - name: Checkout
+        uses: actions/checkout@v4
+
+      - name: Resolve release metadata
+        id: meta
+        run: |
+          if [[ "${GITHUB_REF}" == refs/tags/* ]]; then
+            echo "tag=${GITHUB_REF#refs/tags/}" >> "$GITHUB_OUTPUT"
+            echo "name=${GITHUB_REF#refs/tags/}" >> "$GITHUB_OUTPUT"
+            echo "prerelease=false" >> "$GITHUB_OUTPUT"
+            echo "draft=false" >> "$GITHUB_OUTPUT"
+          else
+            SAFE_REF="${GITHUB_REF_NAME//\//-}"
+            TAG="${{ inputs.release_tag }}"
+            if [[ -z "$TAG" ]]; then
+              TAG="test-${SAFE_REF}-${GITHUB_RUN_NUMBER}"
+            fi
+            echo "tag=$TAG" >> "$GITHUB_OUTPUT"
+            echo "name=Test Release $TAG" >> "$GITHUB_OUTPUT"
+            echo "prerelease=true" >> "$GITHUB_OUTPUT"
+            echo "draft=true" >> "$GITHUB_OUTPUT"
+          fi
+
+      - name: Download all artifacts
+        uses: actions/download-artifact@v4
+        with:
+          path: artifacts
+
+      - name: Prepare release assets
+        run: |
+          mkdir -p release
+          cp artifacts/sugar-wifi-conf-aarch64/sugar-wifi-conf-aarch64 release/
+          cp artifacts/sugar-wifi-conf-armv7/sugar-wifi-conf-armv7 release/
+          cp custom_config.json release/
+          chmod +x release/sugar-wifi-conf-*
+
+      - name: Create GitHub Release
+        uses: softprops/action-gh-release@v2
+        with:
+          tag_name: ${{ steps.meta.outputs.tag }}
+          name: ${{ steps.meta.outputs.name }}
+          target_commitish: ${{ github.sha }}
+          prerelease: ${{ steps.meta.outputs.prerelease }}
+          draft: ${{ steps.meta.outputs.draft }}
+          generate_release_notes: true
+          files: |
+            release/sugar-wifi-conf-aarch64
+            release/sugar-wifi-conf-armv7
+            release/custom_config.json

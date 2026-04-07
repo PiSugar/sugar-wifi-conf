@@ -19,22 +19,93 @@ PiSugar APP / 微信小程序 请扫描上方二维码获取。
 
 
 ### 安装
-```
-curl https://cdn.pisugar.com/PiSugar-wificonfig/script/install.sh | sudo bash
 
-# the script will add sugar-wifi-conf to /etc/rc.local so that it can run on startup
+Rust 版本，资源占用更低，启动更快。源码在 `/rust` 目录。
+
+```
+# 在树莓派上编译安装
+cd rust
+curl --proto '=https' --tlsv1.2 -sSf https://sh.rustup.rs | sh -s -- -y
+source "$HOME/.cargo/env"
+cargo build --release
+sudo mkdir -p /opt/sugar-wifi-config
+sudo cp target/release/sugar-wifi-conf /opt/sugar-wifi-config/
+sudo cp ../custom_config.json /opt/sugar-wifi-config/
+```
+
+或使用安装脚本：
+```
+cd rust && sudo bash install.sh
 ```
 
 ### 可选参数
 ```
 # 可修改 /etc/systemd/system/sugar-wifi-config.service 文件改变运行参数
-# 第一个参数为key
-# 第二个参数是自定义配置json文件地址
 # 例如：
-sudo bash /opt/sugar-wifi-config/run.sh pisugar /opt/sugar-wifi-config/custom_config.json
+sugar-wifi-conf serve --name pisugar --key mykey --config /opt/sugar-wifi-config/custom_config.json
 ```
 
 安装完成后重启树莓派。进入PiSugar APP的Wifi Config页面或者使用微信扫描二维码进入小程序，即可控制树莓派。
+
+### 通过 BLE 进行 SSH 连接
+
+Rust 版本内置了 SSH 隧道功能，可以通过蓝牙 BLE 直接 SSH 到树莓派，无需 WiFi 或 IP 地址。macOS 命令行客户端在 `/ble-ssh-client` 目录。
+
+#### 编译客户端（macOS）
+
+```bash
+cd ble-ssh-client
+cargo build --release
+# 二进制文件在 target/release/ble-ssh
+```
+
+#### 使用方法
+
+```bash
+# 自动模式：扫描 BLE 设备，交互式选择设备，IP 可达时优先使用 IP
+ble-ssh
+
+# 指定 IP 地址（BLE 作为备选）
+ble-ssh --ip 192.168.1.100
+
+# 纯 IP 模式（不扫描 BLE）
+ble-ssh --ip 192.168.1.100 --no-ble
+
+# 强制使用 BLE 隧道（即使 IP 可达）
+ble-ssh --force-ble
+
+# 自定义本地端口和扫描超时
+ble-ssh --port 2222 --scan-timeout 15
+```
+
+发现多个设备时会显示交互式选择列表：
+```
+  📱 Found: pisugar-a
+  📱 Found: pisugar-b
+
+? Select device
+> pisugar-a (IP: 192.168.1.100)
+  pisugar-b (BLE only)
+
+? Connection mode
+> Auto (prefer IP, BLE fallback)
+  Force BLE
+```
+
+然后在另一个终端连接：
+```bash
+ssh pi@localhost -p 2222
+```
+
+隧道活跃时客户端会显示实时传输速度。
+
+#### 工作原理
+
+1. 客户端扫描 PiSugar BLE 设备并连接。
+2. 每次 SSH 连接时，客户端通过 SSH_CTRL 发送 `CONNECT`，服务端连接本地 sshd（127.0.0.1:22）并回复 `OK`。
+3. SSH 数据双向传输：客户端 → SSH_RX → sshd，sshd → SSH_TX → 客户端。
+4. SSH 会话结束时发送 `DISCONNECT`，服务端回复 `CLOSED`。
+5. 如果 Pi 的 IP 可达，客户端会直接通过 TCP 桥接以获得更好速度；否则走 BLE 隧道。
 
 <p align="center">
   <img width="190" src="https://raw.githubusercontent.com/PiSugar/sugar-wifi-conf/master/image/demo.gif">
@@ -107,6 +178,9 @@ commands为客户端可向树莓派发出的shell命令。
 | CUSTOM_INFO_LABEL | 0000-0000-0000-0000-0000-FD2BCCCAXXXX | read | 自定义信息显示的标签名 |
 | CUSTOM_INFO | 0000-0000-0000-0000-0000-FD2BCCCBXXXX | notify | 自定义信息显示的数值 |
 | CUSTOM_COMMAND_LABEL | 0000-0000-0000-0000-0000-FD2BCCCCXXXX | read | 自定义命令名称 |
+| SSH_CTRL | FD2B-4448-AA0F-4A15-A62F-EB0BE77A000A | write, notify | SSH 隧道控制（CONNECT / DISCONNECT） |
+| SSH_RX | FD2B-4448-AA0F-4A15-A62F-EB0BE77A000B | write | SSH 数据：客户端 → Pi（原始二进制，512 字节分包） |
+| SSH_TX | FD2B-4448-AA0F-4A15-A62F-EB0BE77A000C | notify | SSH 数据：Pi → 客户端（原始二进制，512 字节分包） |
 
 
 ### 通讯格式
@@ -118,5 +192,8 @@ commands为客户端可向树莓派发出的shell命令。
 | CUSTOM_COMMAND_NOTIFY | 分为多条20字节数据传送，结束符为&#& |
 | CUSTOM_INFO_LABEL | 例如：uuid为FD2BCCCA1234的CUSTOM_INFO_LABEL 对应 uuid为FD2BCCCB1234的CUSTOM_INFO特征值 |
 | CUSTOM_COMMAND_LABEL | 所有的自定义命令都会广播成uuid为 FD2BCCCCXXXX 的特征值，读取特征值可以获取命令的label, uuid后四位可以用发送执行 |
+| SSH_CTRL | 写入 `CONNECT` 打开到 sshd 的隧道，服务端通知 `OK` 或 `ERR:<原因>`。写入 `DISCONNECT` 关闭隧道，服务端通知 `CLOSED`。 |
+| SSH_RX | 原始二进制 SSH 数据，客户端写入后转发到 sshd。每次写入最大 512 字节。 |
+| SSH_TX | 原始二进制 SSH 数据，sshd 发送到客户端的 BLE 通知。每次通知最大 512 字节。 |
 
 
