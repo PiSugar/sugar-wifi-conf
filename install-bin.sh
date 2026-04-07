@@ -20,17 +20,10 @@ detect_arch() {
     case "$arch" in
         aarch64|arm64)  echo "aarch64" ;;
         armv7*)         echo "armv7"   ;;
-        armv6*)
-            echo "" >&2
-            echo "ARMv6 (Pi Zero/Zero W/Pi 1) does not have a pre-built binary." >&2
-            echo "Please build from source on the device:" >&2
-            echo "  curl -sSL ${PROXY}/${REPO}/raw/master/rust/install.sh | sudo bash" >&2
-            echo "" >&2
-            exit 1
-            ;;
+        armv6*)         echo "armv6"   ;;
         *)
             echo "Error: unsupported architecture '$arch'" >&2
-            echo "Supported: aarch64 (Pi 3/4/5 64-bit), armv7l (Pi 2/3/4 32-bit)" >&2
+            echo "Supported: aarch64 (Pi 3/4/5 64-bit), armv7l (Pi 2/3/4 32-bit), armv6l (Pi Zero/1)" >&2
             exit 1
             ;;
     esac
