@@ -3,10 +3,11 @@ set -e
 
 # Sugar WiFi Config — One-Click Installer (pre-built binary)
 # Usage:
-#   curl -sSL https://raw.githubusercontent.com/PiSugar/sugar-wifi-conf/master/install-bin.sh | sudo bash
-#   curl -sSL https://raw.githubusercontent.com/PiSugar/sugar-wifi-conf/master/install-bin.sh | sudo bash -s -- v0.1.0
+#   curl -sSL https://repo.pisugar.uk/PiSugar/sugar-wifi-conf/raw/master/install-bin.sh | sudo bash
+#   curl -sSL https://repo.pisugar.uk/PiSugar/sugar-wifi-conf/raw/master/install-bin.sh | sudo bash -s -- v0.1.0
 
 REPO="PiSugar/sugar-wifi-conf"
+PROXY="https://repo.pisugar.uk"
 INSTALL_DIR="/opt/sugar-wifi-config"
 SERVICE_NAME="sugar-wifi-config.service"
 SERVICE_FILE="/etc/systemd/system/$SERVICE_NAME"
@@ -22,7 +23,7 @@ detect_arch() {
             echo "" >&2
             echo "ARMv6 (Pi Zero/Zero W/Pi 1) does not have a pre-built binary." >&2
             echo "Please build from source on the device:" >&2
-            echo "  curl -sSL https://raw.githubusercontent.com/${REPO}/master/rust/install.sh | sudo bash" >&2
+            echo "  curl -sSL ${PROXY}/${REPO}/raw/master/rust/install.sh | sudo bash" >&2
             echo "" >&2
             exit 1
             ;;
@@ -41,18 +42,18 @@ resolve_url() {
 
     if [ -n "$version" ]; then
         # Explicit version
-        echo "https://github.com/${REPO}/releases/download/${version}/sugar-wifi-conf-${suffix}"
+        echo "${PROXY}/${REPO}/releases/download/${version}/sugar-wifi-conf-${suffix}"
     else
         # Latest release — query GitHub API
         local latest
-        latest="$(curl -fsSL "https://api.github.com/repos/${REPO}/releases/latest" \
+        latest="$(curl -fsSL "${PROXY}/api/repos/${REPO}/releases/latest" \
                   | grep '"tag_name"' | head -1 | sed -E 's/.*"tag_name":\s*"([^"]+)".*/\1/')"
         if [ -z "$latest" ]; then
             echo "Error: could not determine latest release version." >&2
-            echo "Please specify a version: sudo bash install-bin.sh v0.1.0" >&2
+            echo "Please specify a version: sudo bash install-bin.sh v2.0.0" >&2
             exit 1
         fi
-        echo "https://github.com/${REPO}/releases/download/${latest}/sugar-wifi-conf-${suffix}"
+        echo "${PROXY}/${REPO}/releases/download/${latest}/sugar-wifi-conf-${suffix}"
     fi
 }
 
@@ -83,10 +84,10 @@ chmod +x "$INSTALL_DIR/sugar-wifi-conf"
 if [ ! -f "$INSTALL_DIR/custom_config.json" ]; then
     echo "Downloading default custom_config.json..."
     if [ -n "$VERSION" ]; then
-        curl -fSL "https://github.com/${REPO}/releases/download/${VERSION}/custom_config.json" \
+        curl -fSL "${PROXY}/${REPO}/releases/download/${VERSION}/custom_config.json" \
              -o "$INSTALL_DIR/custom_config.json"
     else
-        curl -fSL "https://raw.githubusercontent.com/${REPO}/master/custom_config.json" \
+        curl -fSL "${PROXY}/${REPO}/raw/master/custom_config.json" \
              -o "$INSTALL_DIR/custom_config.json"
     fi
 fi
