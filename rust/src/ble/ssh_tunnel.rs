@@ -176,6 +176,9 @@ fn build_ctrl(
                 let mut rx = ctrl_notify_rx.clone();
                 async move {
                     log::info!("SSH_CTRL notify subscriber connected");
+                    // Mark current value as seen to skip stale values from
+                    // previous tunnel sessions (e.g. leftover "CLOSED").
+                    rx.borrow_and_update();
                     loop {
                         if rx.changed().await.is_err() {
                             log::info!("SSH_CTRL: watch sender dropped");
@@ -213,8 +216,9 @@ fn build_rx(tcp_write_tx: mpsc::Sender<Vec<u8>>) -> Characteristic {
                 move |data: Vec<u8>, _req: CharacteristicWriteRequest| {
                     let tx = tcp_write_tx.clone();
                     async move {
+                        log::info!("SSH_RX: received {} bytes", data.len());
                         if tx.send(data).await.is_err() {
-                            log::debug!("SSH_RX: tunnel not connected");
+                            log::warn!("SSH_RX: tunnel not connected, data dropped");
                         }
                         Ok(())
                     }
@@ -243,8 +247,10 @@ fn build_tx(ble_tx_sender: Arc<broadcast::Sender<Vec<u8>>>) -> Characteristic {
                     loop {
                         match rx.recv().await {
                             Ok(data) if !data.is_empty() => {
-                                // Chunk data for BLE notification (max 512 bytes per notification)
-                                for chunk in data.chunks(512) {
+                                // BLE notifications cannot exceed ATT_MTU - 3.
+                                // macOS CoreBluetooth typically negotiates MTU 185,
+                                // so max notification payload is 182 bytes.
+                                for chunk in data.chunks(182) {
                                     if let Err(e) = notifier.notify(chunk.to_vec()).await {
                                         log::info!("SSH_TX notify error: {:?}, retrying once", e);
                                         tokio::time::sleep(tokio::time::Duration::from_millis(10)).await;
@@ -298,6 +304,7 @@ async fn tcp_read_task(
                         return;
                     }
                     Ok(n) => {
+                        log::info!("SSH tunnel: read {} bytes from sshd", n);
                         // broadcast::send() returns Err if no active receivers — that's OK
                         let _ = ble_tx.send(buf[..n].to_vec());
                     }
@@ -329,6 +336,7 @@ async fn tcp_write_task(
             data = rx.recv() => {
                 match data {
                     Some(data) => {
+                        log::info!("SSH tunnel: writing {} bytes to sshd", data.len());
                         let mut state = tunnel.lock().await;
                         if let Some(ref mut tcp_tx) = state.tcp_tx {
                             if let Err(e) = tcp_tx.write_all(&data).await {

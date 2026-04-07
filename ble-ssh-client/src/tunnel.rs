@@ -94,13 +94,24 @@ pub async fn bridge_tcp_ble(
         let mut buf = [0u8; 512];
         loop {
             match local_read.read(&mut buf).await {
-                Ok(0) => break,
+                Ok(0) => {
+                    log::info!("client_to_ble: SSH client closed connection");
+                    break;
+                }
                 Ok(n) => {
-                    if tunnel_tx.write_data(&buf[..n]).await.is_err() {
-                        break;
+                    log::info!("client_to_ble: read {} bytes from SSH client", n);
+                    match tunnel_tx.write_data(&buf[..n]).await {
+                        Ok(()) => log::info!("client_to_ble: wrote {} bytes to BLE", n),
+                        Err(e) => {
+                            log::error!("client_to_ble: BLE write error: {}", e);
+                            break;
+                        }
                     }
                 }
-                Err(_) => break,
+                Err(e) => {
+                    log::error!("client_to_ble: read error: {}", e);
+                    break;
+                }
             }
         }
     };
@@ -108,10 +119,13 @@ pub async fn bridge_tcp_ble(
     let tunnel_rx = tunnel.clone();
     let ble_to_client = async move {
         while let Some(bytes) = tunnel_rx.recv_data().await {
+            log::info!("ble_to_client: received {} bytes from BLE", bytes.len());
             if local_write.write_all(&bytes).await.is_err() {
+                log::error!("ble_to_client: write to SSH client failed");
                 break;
             }
         }
+        log::info!("ble_to_client: BLE data channel closed");
     };
 
     tokio::select! {
