@@ -158,6 +158,8 @@ jobs:
           </dict>
           </plist>
           PLIST
+          # Ad-hoc code sign so macOS shows "unidentified developer" instead of "damaged"
+          codesign --force --deep -s - "$APP"
           # Zip the .app bundle for upload
           zip -r "ble-ssh-macos-${{ matrix.suffix }}.zip" "$APP"
 

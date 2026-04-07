@@ -10,3 +10,4 @@ node/node_modules
 ble-ssh-client/target
 rust/target/
 cloudflare-worker
+.DS_Store
