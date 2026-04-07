@@ -6,3 +6,4 @@ save.md
 .idea/codeStyles/Project.xml
 web-bluetooth-client/yarn.lock
 build/*
+rust

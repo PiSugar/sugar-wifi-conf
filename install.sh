@@ -174,8 +174,10 @@ SERVICE_NAME="sugar-wifi-config.service"
 SERVICE_FILE="/etc/systemd/system/$SERVICE_NAME"
 
 # Remove old rc.local configuration
-echo -e "Removing old rc.local configuration..."
-sudo sed -i '/sugar-wifi-conf/d' /etc/rc.local
+if [ -f /etc/rc.local ]; then
+    echo -e "Removing old rc.local configuration..."
+    sudo sed -i '/sugar-wifi-conf/d' /etc/rc.local
+fi
 
 # If systemd service exists, remove old systemd service file
 if [ -f "$SERVICE_FILE" ]; then
