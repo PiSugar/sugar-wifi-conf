@@ -20,7 +20,32 @@ PiSugar APP / 微信小程序 请扫描上方二维码获取。
 
 ### 安装
 
-Rust 版本，资源占用更低，启动更快。源码在 `/rust` 目录。
+#### 一键安装（推荐）
+
+下载预编译二进制文件并安装为 systemd 服务，无需 Rust 工具链：
+
+```bash
+curl -sSL https://repo.pisugar.uk/PiSugar/sugar-wifi-conf/raw/master/install-bin.sh | sudo bash
+```
+
+安装指定版本：
+```bash
+curl -sSL https://repo.pisugar.uk/PiSugar/sugar-wifi-conf/raw/master/install-bin.sh | sudo bash -s -- v0.1.0
+```
+
+**支持的树莓派型号：**
+
+| 型号 | 架构 | 二进制文件 |
+| --- | --- | --- |
+| Pi Zero, Zero W, Pi 1 | ARMv6 (armv6l) | `sugar-wifi-conf-armv6` |
+| Pi 2, 3, 4, Zero 2 W (32位系统) | ARMv7 (armv7l) | `sugar-wifi-conf-armv7` |
+| Pi 3, 4, 5, Zero 2 W (64位系统) | AArch64 (aarch64) | `sugar-wifi-conf-aarch64` |
+
+安装脚本会自动检测架构并下载对应的二进制文件。
+
+#### 从源码编译
+
+源码在 `/rust` 目录。
 
 ```
 # 在树莓派上编译安装

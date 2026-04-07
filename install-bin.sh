@@ -3,13 +3,15 @@ set -e
 
 # Sugar WiFi Config — One-Click Installer (pre-built binary)
 # Usage:
-#   curl -sSL https://raw.githubusercontent.com/PiSugar/sugar-wifi-conf/master/install-bin.sh | sudo bash
-#   curl -sSL https://raw.githubusercontent.com/PiSugar/sugar-wifi-conf/master/install-bin.sh | sudo bash -s -- v0.1.0
+#   curl -sSL https://repo.pisugar.uk/PiSugar/sugar-wifi-conf/raw/master/install-bin.sh | sudo bash
+#   curl -sSL https://repo.pisugar.uk/PiSugar/sugar-wifi-conf/raw/master/install-bin.sh | sudo bash -s -- v0.1.0
 
 REPO="PiSugar/sugar-wifi-conf"
+PROXY="https://repo.pisugar.uk"
 INSTALL_DIR="/opt/sugar-wifi-config"
 SERVICE_NAME="sugar-wifi-config.service"
 SERVICE_FILE="/etc/systemd/system/$SERVICE_NAME"
+TMP_BINARY="$INSTALL_DIR/sugar-wifi-conf.tmp"
 
 # --- Detect architecture ---
 detect_arch() {
@@ -18,17 +20,10 @@ detect_arch() {
     case "$arch" in
         aarch64|arm64)  echo "aarch64" ;;
         armv7*)         echo "armv7"   ;;
-        armv6*)
-            echo "" >&2
-            echo "ARMv6 (Pi Zero/Zero W/Pi 1) does not have a pre-built binary." >&2
-            echo "Please build from source on the device:" >&2
-            echo "  curl -sSL https://raw.githubusercontent.com/${REPO}/master/rust/install.sh | sudo bash" >&2
-            echo "" >&2
-            exit 1
-            ;;
+        armv6*)         echo "armv6"   ;;
         *)
             echo "Error: unsupported architecture '$arch'" >&2
-            echo "Supported: aarch64 (Pi 3/4/5 64-bit), armv7l (Pi 2/3/4 32-bit)" >&2
+            echo "Supported: aarch64 (Pi 3/4/5 64-bit), armv7l (Pi 2/3/4 32-bit), armv6l (Pi Zero/1)" >&2
             exit 1
             ;;
     esac
@@ -41,18 +36,10 @@ resolve_url() {
 
     if [ -n "$version" ]; then
         # Explicit version
-        echo "https://github.com/${REPO}/releases/download/${version}/sugar-wifi-conf-${suffix}"
+        echo "${PROXY}/${REPO}/releases/download/${version}/sugar-wifi-conf-${suffix}"
     else
-        # Latest release — query GitHub API
-        local latest
-        latest="$(curl -fsSL "https://api.github.com/repos/${REPO}/releases/latest" \
-                  | grep '"tag_name"' | head -1 | sed -E 's/.*"tag_name":\s*"([^"]+)".*/\1/')"
-        if [ -z "$latest" ]; then
-            echo "Error: could not determine latest release version." >&2
-            echo "Please specify a version: sudo bash install-bin.sh v0.1.0" >&2
-            exit 1
-        fi
-        echo "https://github.com/${REPO}/releases/download/${latest}/sugar-wifi-conf-${suffix}"
+        # Latest release — use the latest/download redirect to avoid API rate limits
+        echo "${PROXY}/${REPO}/releases/latest/download/sugar-wifi-conf-${suffix}"
     fi
 }
 
@@ -66,27 +53,40 @@ URL="$(resolve_url "$VERSION" "$SUFFIX")"
 echo "Architecture : $SUFFIX"
 echo "Download URL : $URL"
 
+# Stop existing service before replacing the binary to avoid "Text file busy"
+if [ -f "$SERVICE_FILE" ]; then
+    echo "Stopping existing service..."
+    systemctl stop "$SERVICE_NAME" 2>/dev/null || true
+    systemctl disable "$SERVICE_NAME" 2>/dev/null || true
+    rm -f "$SERVICE_FILE"
+fi
+
 # Install runtime dependencies
 echo ""
 echo "Installing runtime dependencies..."
+export DEBIAN_FRONTEND=noninteractive
+export NEEDRESTART_MODE=a
+export APT_LISTCHANGES_FRONTEND=none
+export UCF_FORCE_CONFOLD=1
 apt-get update -qq
-apt-get install -y -qq bluez libdbus-1-3 rfkill
+apt-get install -y -qq -o Dpkg::Options::=--force-confold bluez libdbus-1-3 rfkill
 
 # Download binary
 echo ""
 echo "Downloading sugar-wifi-conf-${SUFFIX}..."
 mkdir -p "$INSTALL_DIR"
-curl -fSL "$URL" -o "$INSTALL_DIR/sugar-wifi-conf"
+curl -fSL "$URL" -o "$TMP_BINARY"
+mv -f "$TMP_BINARY" "$INSTALL_DIR/sugar-wifi-conf"
 chmod +x "$INSTALL_DIR/sugar-wifi-conf"
 
 # Download default config if not present
 if [ ! -f "$INSTALL_DIR/custom_config.json" ]; then
     echo "Downloading default custom_config.json..."
     if [ -n "$VERSION" ]; then
-        curl -fSL "https://github.com/${REPO}/releases/download/${VERSION}/custom_config.json" \
+        curl -fSL "${PROXY}/${REPO}/releases/download/${VERSION}/custom_config.json" \
              -o "$INSTALL_DIR/custom_config.json"
     else
-        curl -fSL "https://raw.githubusercontent.com/${REPO}/master/custom_config.json" \
+        curl -fSL "${PROXY}/${REPO}/releases/latest/download/custom_config.json" \
              -o "$INSTALL_DIR/custom_config.json"
     fi
 fi
@@ -96,14 +96,6 @@ ln -sf "$INSTALL_DIR/sugar-wifi-conf" /usr/local/bin/sugar-wifi-conf
 
 # Clean up old rc.local entries
 sed -i '/sugar-wifi-conf/d' /etc/rc.local 2>/dev/null || true
-
-# Stop existing service if running
-if [ -f "$SERVICE_FILE" ]; then
-    echo "Stopping existing service..."
-    systemctl stop "$SERVICE_NAME" 2>/dev/null || true
-    systemctl disable "$SERVICE_NAME" 2>/dev/null || true
-    rm -f "$SERVICE_FILE"
-fi
 
 # Create systemd service
 echo "Creating systemd service..."

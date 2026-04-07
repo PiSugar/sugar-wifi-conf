@@ -42,7 +42,7 @@ jobs:
           - target: arm-unknown-linux-gnueabihf
             suffix: armv6
             runs_on: self-hosted
-            build_tool: cargo
+            build_tool: zigbuild
             pkg_config_path: /usr/lib/arm-linux-gnueabihf/pkgconfig
 
     steps:
@@ -65,11 +65,13 @@ jobs:
           fi
 
       - name: Install armv6 build dependencies
-        if: matrix.build_tool == 'cargo'
+        if: matrix.build_tool == 'zigbuild'
         run: |
           sudo dpkg --add-architecture armhf
           sudo apt-get update
-          sudo apt-get install -y gcc-arm-linux-gnueabihf libc6-dev-armhf-cross libdbus-1-dev:armhf pkg-config
+          sudo apt-get install -y libdbus-1-dev:armhf pkg-config
+          pip3 install ziglang --break-system-packages || pip3 install ziglang
+          cargo install cargo-zigbuild
 
       - name: Build for ${{ matrix.target }}
         if: matrix.build_tool == 'cross'
@@ -80,12 +82,12 @@ jobs:
         run: cross build --release --target ${{ matrix.target }}
 
       - name: Build armv6 for ${{ matrix.target }}
-        if: matrix.build_tool == 'cargo'
+        if: matrix.build_tool == 'zigbuild'
         working-directory: rust
         env:
           PKG_CONFIG_ALLOW_CROSS: "1"
           PKG_CONFIG_PATH: ${{ matrix.pkg_config_path }}
-        run: cargo build --release --target ${{ matrix.target }}
+        run: cargo zigbuild --release --target ${{ matrix.target }}
 
       - name: Rename binary
         run: |
