@@ -169,9 +169,109 @@ jobs:
           name: ble-ssh-macos-${{ matrix.suffix }}
           path: ble-ssh-macos-${{ matrix.suffix }}.zip
 
+  build-ble-ssh-windows:
+    name: Build ble-ssh (Windows)
+    runs-on: windows-latest
+    strategy:
+      fail-fast: false
+      matrix:
+        include:
+          - target: x86_64-pc-windows-msvc
+            suffix: x86_64
+          - target: aarch64-pc-windows-msvc
+            suffix: aarch64
+
+    steps:
+      - name: Checkout
+        uses: actions/checkout@v4
+
+      - name: Install Rust toolchain
+        uses: dtolnay/rust-toolchain@stable
+        with:
+          toolchain: stable
+          targets: ${{ matrix.target }}
+
+      - name: Build ble-ssh
+        working-directory: ble-ssh-client
+        run: cargo build --release --target ${{ matrix.target }} --bin ble-ssh
+
+      - name: Package binary
+        shell: bash
+        run: |
+          mkdir -p release-win
+          cp ble-ssh-client/target/${{ matrix.target }}/release/ble-ssh.exe \
+             release-win/ble-ssh.exe
+          cd release-win && 7z a -tzip "../ble-ssh-windows-${{ matrix.suffix }}.zip" ble-ssh.exe
+
+      - name: Upload artifact
+        uses: actions/upload-artifact@v4
+        with:
+          name: ble-ssh-windows-${{ matrix.suffix }}
+          path: ble-ssh-windows-${{ matrix.suffix }}.zip
+
+  build-ble-ssh-linux:
+    name: Build ble-ssh (Linux)
+    runs-on: ubuntu-latest
+    strategy:
+      fail-fast: false
+      matrix:
+        include:
+          - target: x86_64-unknown-linux-gnu
+            suffix: x86_64
+          - target: aarch64-unknown-linux-gnu
+            suffix: aarch64
+
+    steps:
+      - name: Checkout
+        uses: actions/checkout@v4
+
+      - name: Install Rust toolchain
+        uses: dtolnay/rust-toolchain@stable
+        with:
+          toolchain: stable
+          targets: ${{ matrix.target }}
+
+      - name: Install dependencies (x86_64)
+        if: matrix.target == 'x86_64-unknown-linux-gnu'
+        run: |
+          sudo apt-get update
+          sudo apt-get install -y libdbus-1-dev pkg-config
+
+      - name: Install cross (aarch64)
+        if: matrix.target == 'aarch64-unknown-linux-gnu'
+        run: |
+          if command -v cross >/dev/null 2>&1; then
+            cross --version
+          else
+            cargo install cross --git https://github.com/cross-rs/cross
+          fi
+
+      - name: Build ble-ssh (x86_64)
+        if: matrix.target == 'x86_64-unknown-linux-gnu'
+        working-directory: ble-ssh-client
+        run: cargo build --release --target ${{ matrix.target }} --bin ble-ssh
+
+      - name: Build ble-ssh (aarch64)
+        if: matrix.target == 'aarch64-unknown-linux-gnu'
+        working-directory: ble-ssh-client
+        run: cross build --release --target ${{ matrix.target }} --bin ble-ssh
+
+      - name: Package binary
+        run: |
+          cp ble-ssh-client/target/${{ matrix.target }}/release/ble-ssh \
+             ble-ssh-linux-${{ matrix.suffix }}
+          chmod +x ble-ssh-linux-${{ matrix.suffix }}
+          tar czf ble-ssh-linux-${{ matrix.suffix }}.tar.gz ble-ssh-linux-${{ matrix.suffix }}
+
+      - name: Upload artifact
+        uses: actions/upload-artifact@v4
+        with:
+          name: ble-ssh-linux-${{ matrix.suffix }}
+          path: ble-ssh-linux-${{ matrix.suffix }}.tar.gz
+
   release:
     name: Create Release
-    needs: [build, build-ble-ssh]
+    needs: [build, build-ble-ssh, build-ble-ssh-windows, build-ble-ssh-linux]
     if: startsWith(github.ref, 'refs/tags/') || (github.event_name == 'workflow_dispatch' && inputs.create_release)
     runs-on: ubuntu-latest
 
@@ -212,6 +312,10 @@ jobs:
           cp artifacts/sugar-wifi-conf-armv6/sugar-wifi-conf-armv6 release/
           cp artifacts/ble-ssh-macos-aarch64/ble-ssh-macos-aarch64.zip release/
           cp artifacts/ble-ssh-macos-x86_64/ble-ssh-macos-x86_64.zip release/
+          cp artifacts/ble-ssh-windows-x86_64/ble-ssh-windows-x86_64.zip release/
+          cp artifacts/ble-ssh-windows-aarch64/ble-ssh-windows-aarch64.zip release/
+          cp artifacts/ble-ssh-linux-x86_64/ble-ssh-linux-x86_64.tar.gz release/
+          cp artifacts/ble-ssh-linux-aarch64/ble-ssh-linux-aarch64.tar.gz release/
           cp custom_config.json release/
           chmod +x release/sugar-wifi-conf-*
 
@@ -230,4 +334,8 @@ jobs:
             release/sugar-wifi-conf-armv6
             release/ble-ssh-macos-aarch64.zip
             release/ble-ssh-macos-x86_64.zip
+            release/ble-ssh-windows-x86_64.zip
+            release/ble-ssh-windows-aarch64.zip
+            release/ble-ssh-linux-x86_64.tar.gz
+            release/ble-ssh-linux-aarch64.tar.gz
             release/custom_config.json

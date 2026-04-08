@@ -15,6 +15,116 @@ use crate::ble::{self, BleTunnel};
 use crate::speed::SpeedTracker;
 use crate::tunnel;
 
+// ── Platform helpers ──────────────────────────────────
+
+#[cfg(target_os = "macos")]
+fn open_ssh_terminal(user: &str, port: u16) {
+    let ssh_cmd = format!(
+        "ssh -o StrictHostKeyChecking=no -o UserKnownHostsFile=/dev/null -p {} {}@localhost",
+        port, user
+    );
+    let script = format!(
+        "tell application \"Terminal\"\n  activate\n  do script \"{}\"\nend tell",
+        ssh_cmd
+    );
+    let _ = std::process::Command::new("osascript")
+        .arg("-e")
+        .arg(&script)
+        .spawn();
+}
+
+#[cfg(target_os = "windows")]
+fn open_ssh_terminal(user: &str, port: u16) {
+    let ssh_cmd = format!(
+        "ssh -o StrictHostKeyChecking=no -o UserKnownHostsFile=/dev/null -p {} {}@localhost",
+        port, user
+    );
+    // Open Windows Terminal (wt) or fall back to cmd
+    let wt = std::process::Command::new("wt")
+        .args(["new-tab", "cmd", "/K", &ssh_cmd])
+        .spawn();
+    if wt.is_err() {
+        let _ = std::process::Command::new("cmd")
+            .args(["/C", "start", "cmd", "/K", &ssh_cmd])
+            .spawn();
+    }
+}
+
+#[cfg(target_os = "linux")]
+fn open_ssh_terminal(user: &str, port: u16) {
+    let ssh_cmd = format!(
+        "ssh -o StrictHostKeyChecking=no -o UserKnownHostsFile=/dev/null -p {} {}@localhost",
+        port, user
+    );
+    // Try common terminal emulators in order of preference
+    let terminals: &[(&str, &[&str])] = &[
+        ("x-terminal-emulator", &["-e", &ssh_cmd]),
+        ("gnome-terminal", &["--", "sh", "-c", &ssh_cmd]),
+        ("konsole", &["-e", "sh", "-c", &ssh_cmd]),
+        ("xfce4-terminal", &["-e", &ssh_cmd]),
+        ("xterm", &["-e", &ssh_cmd]),
+    ];
+    for (term, args) in terminals {
+        if std::process::Command::new(term).args(*args).spawn().is_ok() {
+            return;
+        }
+    }
+    log::warn!("No supported terminal emulator found");
+}
+
+#[cfg(target_os = "macos")]
+fn copy_to_clipboard(text: &str) {
+    let _ = std::process::Command::new("pbcopy")
+        .stdin(std::process::Stdio::piped())
+        .spawn()
+        .and_then(|mut child| {
+            use std::io::Write;
+            if let Some(stdin) = child.stdin.as_mut() {
+                stdin.write_all(text.as_bytes())?;
+            }
+            child.wait()
+        });
+}
+
+#[cfg(target_os = "windows")]
+fn copy_to_clipboard(text: &str) {
+    let _ = std::process::Command::new("clip")
+        .stdin(std::process::Stdio::piped())
+        .spawn()
+        .and_then(|mut child| {
+            use std::io::Write;
+            if let Some(stdin) = child.stdin.as_mut() {
+                stdin.write_all(text.as_bytes())?;
+            }
+            child.wait()
+        });
+}
+
+#[cfg(target_os = "linux")]
+fn copy_to_clipboard(text: &str) {
+    // Try xclip first, then xsel, then wl-copy (Wayland)
+    let tools: &[(&str, &[&str])] = &[
+        ("xclip", &["-selection", "clipboard"]),
+        ("xsel", &["--clipboard", "--input"]),
+        ("wl-copy", &[]),
+    ];
+    for (tool, args) in tools {
+        if let Ok(mut child) = std::process::Command::new(tool)
+            .args(*args)
+            .stdin(std::process::Stdio::piped())
+            .spawn()
+        {
+            use std::io::Write;
+            if let Some(stdin) = child.stdin.as_mut() {
+                let _ = stdin.write_all(text.as_bytes());
+            }
+            let _ = child.wait();
+            return;
+        }
+    }
+    log::warn!("No clipboard tool found (install xclip, xsel, or wl-copy)");
+}
+
 // ── Messages ──────────────────────────────────────────
 
 /// From async workers → UI thread.
@@ -266,22 +376,11 @@ pub fn run() {
             } else {
                 let eid_str = eid.0.as_str();
                 if let Some(dev_id) = eid_str.strip_prefix("ssh:") {
-                    // Open SSH in Terminal.app
+                    // Open SSH in a terminal window
                     if let Some((_, info)) = state.devices.iter().find(|(did, _)| *did == dev_id) {
                         if let Some(port) = info.tunnel_port {
                             let user = info.ssh_user.as_deref().unwrap_or("pi");
-                            let ssh_cmd = format!(
-                                "ssh -o StrictHostKeyChecking=no -o UserKnownHostsFile=/dev/null -p {} {}@localhost",
-                                port, user
-                            );
-                            let script = format!(
-                                "tell application \"Terminal\"\n  activate\n  do script \"{}\"\nend tell",
-                                ssh_cmd
-                            );
-                            let _ = std::process::Command::new("osascript")
-                                .arg("-e")
-                                .arg(&script)
-                                .spawn();
+                            open_ssh_terminal(user, port);
                         }
                     }
                 } else if let Some(dev_id) = eid_str.strip_prefix("copy:") {
@@ -290,16 +389,7 @@ pub fn run() {
                         if let Some(port) = info.tunnel_port {
                             let user = info.ssh_user.as_deref().unwrap_or("pi");
                             let cmd = format!("ssh -p {} {}@localhost", port, user);
-                            let _ = std::process::Command::new("pbcopy")
-                                .stdin(std::process::Stdio::piped())
-                                .spawn()
-                                .and_then(|mut child| {
-                                    use std::io::Write;
-                                    if let Some(stdin) = child.stdin.as_mut() {
-                                        stdin.write_all(cmd.as_bytes())?;
-                                    }
-                                    child.wait()
-                                });
+                            copy_to_clipboard(&cmd);
                         }
                     }
                 } else if let Some(dev_id) = eid_str.strip_prefix("dc:") {
