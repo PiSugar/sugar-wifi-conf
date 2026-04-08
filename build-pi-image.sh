@@ -100,9 +100,14 @@ truncate -s +64M "$IMAGE_FILE"
 
 LOOP_DEV=""
 MOUNT_DIR=""
+BOOT_DIR=""
 
 cleanup() {
     echo "Cleaning up ..."
+    if [ -n "$BOOT_DIR" ] && mountpoint -q "$BOOT_DIR" 2>/dev/null; then
+        umount "$BOOT_DIR" || true
+    fi
+    [ -n "$BOOT_DIR" ] && rm -rf "$BOOT_DIR"
     if [ -n "$MOUNT_DIR" ] && mountpoint -q "$MOUNT_DIR" 2>/dev/null; then
         umount "$MOUNT_DIR" || true
     fi
@@ -167,6 +172,88 @@ mkdir -p "$MOUNT_DIR/etc/systemd/system/multi-user.target.wants"
 ln -sf /etc/systemd/system/sugar-wifi-config.service \
     "$MOUNT_DIR/etc/systemd/system/multi-user.target.wants/sugar-wifi-config.service"
 
+# ── Enable SSH ──────────────────────────────────────────────────────────
+
+echo "Enabling SSH ..."
+mkdir -p "$MOUNT_DIR/etc/systemd/system/sshd.service.d"
+mkdir -p "$MOUNT_DIR/etc/systemd/system/multi-user.target.wants"
+ln -sf /usr/lib/systemd/system/ssh.service \
+    "$MOUNT_DIR/etc/systemd/system/multi-user.target.wants/ssh.service" 2>/dev/null || true
+ln -sf /lib/systemd/system/ssh.service \
+    "$MOUNT_DIR/etc/systemd/system/multi-user.target.wants/ssh.service" 2>/dev/null || true
+
+# Also place marker on boot partition (legacy method)
+BOOT_DIR=$(mktemp -d)
+mount "${LOOP_DEV}p1" "$BOOT_DIR"
+touch "$BOOT_DIR/ssh"
+echo "SSH marker placed on boot partition"
+umount "$BOOT_DIR"
+rm -rf "$BOOT_DIR"
+BOOT_DIR=""
+
+# ── Configure default user pi:raspberry ─────────────────────────────────
+
+echo "Setting up user pi with default password ..."
+# Generate password hash for 'raspberry'
+PASS_HASH=$(openssl passwd -6 raspberry)
+
+# userconf.txt: used by Raspberry Pi OS firstboot to create the user
+echo "pi:${PASS_HASH}" > "$MOUNT_DIR/boot/userconf.txt" 2>/dev/null || true
+echo "pi:${PASS_HASH}" > "$MOUNT_DIR/etc/userconf.txt" 2>/dev/null || true
+
+# Also pre-populate /etc/shadow in case firstboot is skipped
+if [ -f "$MOUNT_DIR/etc/shadow" ]; then
+    # If pi user already exists in shadow, update its hash
+    if grep -q '^pi:' "$MOUNT_DIR/etc/shadow"; then
+        sed -i "s|^pi:[^:]*:|pi:${PASS_HASH}:|" "$MOUNT_DIR/etc/shadow"
+    fi
+fi
+
+# ── Set WiFi regulatory country & unlock WiFi ───────────────────────────
+
+echo "Setting WiFi country to GB ..."
+# /etc/default/crda — used by crda / wireless-regdb
+mkdir -p "$MOUNT_DIR/etc/default"
+echo 'REGDOMAIN=GB' > "$MOUNT_DIR/etc/default/crda"
+
+# wpa_supplicant.conf — country is read by wpa_supplicant on boot
+WPA_CONF="$MOUNT_DIR/etc/wpa_supplicant/wpa_supplicant.conf"
+mkdir -p "$(dirname "$WPA_CONF")"
+if [ -f "$WPA_CONF" ]; then
+    # Replace existing country= or prepend if missing
+    if grep -q '^country=' "$WPA_CONF"; then
+        sed -i 's/^country=.*/country=GB/' "$WPA_CONF"
+    else
+        sed -i '1s/^/country=GB\n/' "$WPA_CONF"
+    fi
+else
+    cat > "$WPA_CONF" <<'WPA'
+country=GB
+ctrl_interface=DIR=/var/run/wpa_supplicant GROUP=netdev
+update_config=1
+WPA
+fi
+
+echo "Creating WiFi unblock service ..."
+cat > "$MOUNT_DIR/etc/systemd/system/wifi-unblock.service" <<'WIFISERVICE'
+[Unit]
+Description=Set WiFi regulatory domain and unblock WiFi
+Before=network-pre.target
+Wants=network-pre.target
+
+[Service]
+Type=oneshot
+ExecStart=/sbin/iw reg set GB
+ExecStart=/usr/sbin/rfkill unblock wifi
+RemainAfterExit=yes
+
+[Install]
+WantedBy=multi-user.target
+WIFISERVICE
+
+ln -sf /etc/systemd/system/wifi-unblock.service \
+    "$MOUNT_DIR/etc/systemd/system/multi-user.target.wants/wifi-unblock.service"
+
 # ── Unmount & detach ────────────────────────────────────────────────────
 
 echo ""
@@ -174,6 +261,7 @@ echo "Unmounting ..."
 umount "$MOUNT_DIR"
 rm -rf "$MOUNT_DIR"
 MOUNT_DIR=""
+BOOT_DIR=""
 
 losetup -d "$LOOP_DEV"
 LOOP_DEV=""
