@@ -255,9 +255,52 @@ jobs:
           name: ble-ssh-linux-${{ matrix.suffix }}
           path: ble-ssh-linux-${{ matrix.suffix }}.tar.gz
 
+  build-pi-image:
+    name: Build Pi Image (${{ matrix.arch }})
+    needs: [build]
+    runs-on: ubuntu-latest
+    strategy:
+      fail-fast: false
+      matrix:
+        include:
+          - arch: arm64
+            binary_artifact: sugar-wifi-conf-aarch64
+          - arch: armhf
+            binary_artifact: sugar-wifi-conf-armv6
+
+    steps:
+      - name: Checkout
+        uses: actions/checkout@v4
+
+      - name: Download binary artifact
+        uses: actions/download-artifact@v4
+        with:
+          name: ${{ matrix.binary_artifact }}
+          path: artifacts
+
+      - name: Install image build dependencies
+        run: |
+          sudo apt-get update -qq
+          sudo apt-get install -y -qq cloud-guest-utils e2fsprogs xz-utils
+
+      - name: Build Pi image
+        run: |
+          chmod +x artifacts/${{ matrix.binary_artifact }}
+          sudo bash build-pi-image.sh \
+            ${{ matrix.arch }} \
+            artifacts/${{ matrix.binary_artifact }} \
+            custom_config.json \
+            sugar-wifi-conf-raspios-lite-${{ matrix.arch }}
+
+      - name: Upload image artifact
+        uses: actions/upload-artifact@v4
+        with:
+          name: sugar-wifi-conf-raspios-lite-${{ matrix.arch }}
+          path: sugar-wifi-conf-raspios-lite-${{ matrix.arch }}.img.xz
+
   release:
     name: Create Release
-    needs: [build, build-ble-ssh, build-ble-ssh-windows, build-ble-ssh-linux]
+    needs: [build, build-ble-ssh, build-ble-ssh-windows, build-ble-ssh-linux, build-pi-image]
     if: startsWith(github.ref, 'refs/tags/') || (github.event_name == 'workflow_dispatch' && inputs.create_release)
     runs-on: ubuntu-latest
 
@@ -302,6 +345,8 @@ jobs:
           cp artifacts/ble-ssh-windows-aarch64/ble-ssh-windows-aarch64.zip release/
           cp artifacts/ble-ssh-linux-x86_64/ble-ssh-linux-x86_64.tar.gz release/
           cp artifacts/ble-ssh-linux-aarch64/ble-ssh-linux-aarch64.tar.gz release/
+          cp artifacts/sugar-wifi-conf-raspios-lite-arm64/sugar-wifi-conf-raspios-lite-arm64.img.xz release/
+          cp artifacts/sugar-wifi-conf-raspios-lite-armhf/sugar-wifi-conf-raspios-lite-armhf.img.xz release/
           cp custom_config.json release/
           chmod +x release/sugar-wifi-conf-*
 
@@ -324,4 +369,6 @@ jobs:
             release/ble-ssh-windows-aarch64.zip
             release/ble-ssh-linux-x86_64.tar.gz
             release/ble-ssh-linux-aarch64.tar.gz
+            release/sugar-wifi-conf-raspios-lite-arm64.img.xz
+            release/sugar-wifi-conf-raspios-lite-armhf.img.xz
             release/custom_config.json
