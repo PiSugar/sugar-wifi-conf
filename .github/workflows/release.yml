@@ -22,8 +22,41 @@ permissions:
   contents: write
 
 jobs:
-  build:
-    name: Build ${{ matrix.suffix }}
+  # ── Detect which components changed (branch pushes only) ────────
+  detect-changes:
+    name: Detect Changes
+    if: ${{ !startsWith(github.ref, 'refs/tags/') && github.event_name != 'workflow_dispatch' }}
+    runs-on: ubuntu-latest
+    outputs:
+      server: ${{ steps.filter.outputs.server }}
+      ble-ssh: ${{ steps.filter.outputs.ble-ssh }}
+      pi-image: ${{ steps.filter.outputs.pi-image }}
+    steps:
+      - uses: actions/checkout@v4
+      - uses: dorny/paths-filter@v3
+        id: filter
+        with:
+          filters: |
+            server:
+              - 'rust/**'
+            ble-ssh:
+              - 'ble-ssh-client/**'
+            pi-image:
+              - 'rust/**'
+              - 'build-pi-image.sh'
+              - 'custom_config.json'
+              - 'install-bin.sh'
+
+  # ── Server (sugar-wifi-conf) ────────────────────────────────────
+  build-server:
+    name: Build Server ${{ matrix.suffix }}
+    needs: [detect-changes]
+    if: >-
+      always() && !cancelled() &&
+      (startsWith(github.ref, 'refs/tags/') ||
+       github.event_name == 'workflow_dispatch' ||
+       needs.detect-changes.outputs.server == 'true' ||
+       needs.detect-changes.outputs.pi-image == 'true')
     runs-on: ${{ matrix.runs_on }}
     strategy:
       fail-fast: false
@@ -100,8 +133,15 @@ jobs:
           name: sugar-wifi-conf-${{ matrix.suffix }}
           path: sugar-wifi-conf-${{ matrix.suffix }}
 
+  # ── BLE SSH Client ──────────────────────────────────────────────
   build-ble-ssh:
     name: Build ble-ssh (macOS)
+    needs: [detect-changes]
+    if: >-
+      always() && !cancelled() &&
+      (startsWith(github.ref, 'refs/tags/') ||
+       github.event_name == 'workflow_dispatch' ||
+       needs.detect-changes.outputs.ble-ssh == 'true')
     runs-on: macos-latest
     strategy:
       fail-fast: false
@@ -171,6 +211,12 @@ jobs:
 
   build-ble-ssh-windows:
     name: Build ble-ssh (Windows)
+    needs: [detect-changes]
+    if: >-
+      always() && !cancelled() &&
+      (startsWith(github.ref, 'refs/tags/') ||
+       github.event_name == 'workflow_dispatch' ||
+       needs.detect-changes.outputs.ble-ssh == 'true')
     runs-on: windows-latest
     strategy:
       fail-fast: false
@@ -211,6 +257,12 @@ jobs:
 
   build-ble-ssh-linux:
     name: Build ble-ssh (Linux ${{ matrix.suffix }})
+    needs: [detect-changes]
+    if: >-
+      always() && !cancelled() &&
+      (startsWith(github.ref, 'refs/tags/') ||
+       github.event_name == 'workflow_dispatch' ||
+       needs.detect-changes.outputs.ble-ssh == 'true')
     runs-on: ${{ matrix.runs_on }}
     strategy:
       fail-fast: false
@@ -255,17 +307,32 @@ jobs:
           name: ble-ssh-linux-${{ matrix.suffix }}
           path: ble-ssh-linux-${{ matrix.suffix }}.tar.gz
 
+  # ── Raspberry Pi Image ──────────────────────────────────────────
   build-pi-image:
-    name: Build Pi Image (${{ matrix.arch }})
-    needs: [build]
+    name: Build Pi Image (${{ matrix.variant }}-${{ matrix.arch }})
+    needs: [detect-changes, build-server]
+    if: >-
+      always() && !cancelled() &&
+      needs.build-server.result == 'success' &&
+      (startsWith(github.ref, 'refs/tags/') ||
+       github.event_name == 'workflow_dispatch' ||
+       needs.detect-changes.outputs.pi-image == 'true')
     runs-on: ubuntu-latest
     strategy:
       fail-fast: false
       matrix:
         include:
           - arch: arm64
+            variant: lite
             binary_artifact: sugar-wifi-conf-aarch64
           - arch: armhf
+            variant: lite
+            binary_artifact: sugar-wifi-conf-armv6
+          - arch: arm64
+            variant: desktop
+            binary_artifact: sugar-wifi-conf-aarch64
+          - arch: armhf
+            variant: desktop
             binary_artifact: sugar-wifi-conf-armv6
 
     steps:
@@ -288,20 +355,27 @@ jobs:
           chmod +x artifacts/${{ matrix.binary_artifact }}
           sudo bash build-pi-image.sh \
             ${{ matrix.arch }} \
+            ${{ matrix.variant }} \
             artifacts/${{ matrix.binary_artifact }} \
             custom_config.json \
-            sugar-wifi-conf-raspios-lite-${{ matrix.arch }}
+            sugar-wifi-conf-raspios-${{ matrix.variant }}-${{ matrix.arch }}
 
       - name: Upload image artifact
         uses: actions/upload-artifact@v4
         with:
-          name: sugar-wifi-conf-raspios-lite-${{ matrix.arch }}
-          path: sugar-wifi-conf-raspios-lite-${{ matrix.arch }}.img.xz
+          name: sugar-wifi-conf-raspios-${{ matrix.variant }}-${{ matrix.arch }}
+          path: |
+            sugar-wifi-conf-raspios-${{ matrix.variant }}-${{ matrix.arch }}.img.xz
+            sugar-wifi-conf-raspios-${{ matrix.variant }}-${{ matrix.arch }}.base-image.txt
 
+  # ── Release ──────────────────────────────────────────────────────
   release:
     name: Create Release
-    needs: [build, build-ble-ssh, build-ble-ssh-windows, build-ble-ssh-linux, build-pi-image]
-    if: startsWith(github.ref, 'refs/tags/') || (github.event_name == 'workflow_dispatch' && inputs.create_release)
+    needs: [build-server, build-ble-ssh, build-ble-ssh-windows, build-ble-ssh-linux, build-pi-image]
+    if: >-
+      always() && !cancelled() &&
+      !contains(needs.*.result, 'failure') &&
+      (startsWith(github.ref, 'refs/tags/') || (github.event_name == 'workflow_dispatch' && inputs.create_release))
     runs-on: ubuntu-latest
 
     steps:
@@ -347,8 +421,26 @@ jobs:
           cp artifacts/ble-ssh-linux-aarch64/ble-ssh-linux-aarch64.tar.gz release/
           cp artifacts/sugar-wifi-conf-raspios-lite-arm64/sugar-wifi-conf-raspios-lite-arm64.img.xz release/
           cp artifacts/sugar-wifi-conf-raspios-lite-armhf/sugar-wifi-conf-raspios-lite-armhf.img.xz release/
+          cp artifacts/sugar-wifi-conf-raspios-desktop-arm64/sugar-wifi-conf-raspios-desktop-arm64.img.xz release/
+          cp artifacts/sugar-wifi-conf-raspios-desktop-armhf/sugar-wifi-conf-raspios-desktop-armhf.img.xz release/
           cp custom_config.json release/
           chmod +x release/sugar-wifi-conf-*
+
+      - name: Build release body
+        id: body
+        run: |
+          BODY="## Raspberry Pi Images\n\n"
+          BODY+="| Image | Base Image |\n"
+          BODY+="|-------|------------|\n"
+          for f in artifacts/sugar-wifi-conf-raspios-*/sugar-wifi-conf-raspios-*.base-image.txt; do
+            [ -f "$f" ] || continue
+            BASE=$(cat "$f")
+            NAME=$(basename "$f" .base-image.txt)
+            BODY+="| ${NAME}.img.xz | ${BASE} |\n"
+          done
+          # Write to file to avoid escaping issues
+          printf "$BODY" > release-body.md
+          echo "path=release-body.md" >> "$GITHUB_OUTPUT"
 
       - name: Create GitHub Release
         uses: softprops/action-gh-release@v2
@@ -359,6 +451,8 @@ jobs:
           prerelease: ${{ steps.meta.outputs.prerelease }}
           draft: ${{ steps.meta.outputs.draft }}
           generate_release_notes: true
+          body_path: ${{ steps.body.outputs.path }}
+          append_body: true
           files: |
             release/sugar-wifi-conf-aarch64
             release/sugar-wifi-conf-armv7
@@ -371,4 +465,6 @@ jobs:
             release/ble-ssh-linux-aarch64.tar.gz
             release/sugar-wifi-conf-raspios-lite-arm64.img.xz
             release/sugar-wifi-conf-raspios-lite-armhf.img.xz
+            release/sugar-wifi-conf-raspios-desktop-arm64.img.xz
+            release/sugar-wifi-conf-raspios-desktop-armhf.img.xz
             release/custom_config.json

@@ -1,21 +1,24 @@
 #!/bin/bash
-# build-pi-image.sh — Build a Raspberry Pi OS Lite image with sugar-wifi-conf pre-installed
+# build-pi-image.sh — Build a Raspberry Pi OS image with sugar-wifi-conf pre-installed
 #
 # Usage:
-#   sudo bash build-pi-image.sh <arm64|armhf> <binary_path> <config_path> [output_name]
+#   sudo bash build-pi-image.sh <arm64|armhf> <lite|desktop> <binary_path> <config_path> [output_name]
 #
 # Example:
-#   sudo bash build-pi-image.sh arm64 ./sugar-wifi-conf-aarch64 ./custom_config.json
+#   sudo bash build-pi-image.sh arm64 lite ./sugar-wifi-conf-aarch64 ./custom_config.json
+#   sudo bash build-pi-image.sh arm64 desktop ./sugar-wifi-conf-aarch64 ./custom_config.json
 
 set -euo pipefail
 
-ARCH="${1:?Usage: $0 <arm64|armhf> <binary_path> <config_path> [output_name]}"
-BINARY_PATH="${2:?Usage: $0 <arm64|armhf> <binary_path> <config_path> [output_name]}"
-CONFIG_PATH="${3:?Usage: $0 <arm64|armhf> <binary_path> <config_path> [output_name]}"
-OUTPUT_NAME="${4:-sugar-wifi-conf-raspios-lite-${ARCH}}"
+ARCH="${1:?Usage: $0 <arm64|armhf> <lite|desktop> <binary_path> <config_path> [output_name]}"
+VARIANT="${2:?Usage: $0 <arm64|armhf> <lite|desktop> <binary_path> <config_path> [output_name]}"
+BINARY_PATH="${3:?Usage: $0 <arm64|armhf> <lite|desktop> <binary_path> <config_path> [output_name]}"
+CONFIG_PATH="${4:?Usage: $0 <arm64|armhf> <lite|desktop> <binary_path> <config_path> [output_name]}"
+OUTPUT_NAME="${5:-sugar-wifi-conf-raspios-${VARIANT}-${ARCH}}"
 
 echo "=== Building Raspberry Pi OS image with sugar-wifi-conf ==="
 echo "Architecture : ${ARCH}"
+echo "Variant      : ${VARIANT}"
 echo "Binary       : ${BINARY_PATH}"
 echo "Config       : ${CONFIG_PATH}"
 echo "Output       : ${OUTPUT_NAME}.img.xz"
@@ -30,14 +33,24 @@ if [ ! -f "$CONFIG_PATH" ]; then
     exit 1
 fi
 
-# Map arch to Raspberry Pi OS download path
-case "$ARCH" in
-    arm64) IMAGE_PATH="raspios_lite_arm64" ;;
-    armhf) IMAGE_PATH="raspios_lite_armhf" ;;
-    *)     echo "Error: unsupported arch '${ARCH}' (use arm64 or armhf)" >&2; exit 1 ;;
+# Validate variant
+case "$VARIANT" in
+    lite|desktop) ;;
+    *) echo "Error: unsupported variant '${VARIANT}' (use lite or desktop)" >&2; exit 1 ;;
 esac
 
-# ── Download latest Raspberry Pi OS Lite image ──────────────────────────
+# Map arch + variant to Raspberry Pi OS download path
+# Lite: raspios_lite_arm64, raspios_lite_armhf
+# Desktop: raspios_arm64, raspios_armhf
+case "${VARIANT}-${ARCH}" in
+    lite-arm64)    IMAGE_PATH="raspios_lite_arm64" ;;
+    lite-armhf)    IMAGE_PATH="raspios_lite_armhf" ;;
+    desktop-arm64) IMAGE_PATH="raspios_arm64" ;;
+    desktop-armhf) IMAGE_PATH="raspios_armhf" ;;
+    *)             echo "Error: unsupported combination '${VARIANT}-${ARCH}'" >&2; exit 1 ;;
+esac
+
+# ── Download latest Raspberry Pi OS image ───────────────────────────────
 
 WORK_DIR=$(mktemp -d)
 echo ""
@@ -175,3 +188,7 @@ mv "${IMAGE_FILE}.xz" "${OUTPUT_NAME}.img.xz"
 echo ""
 echo "=== Done! ==="
 ls -lh "${OUTPUT_NAME}.img.xz"
+
+# Write base image version info for CI release notes
+echo "${IMAGE_XZ_NAME}" > "${OUTPUT_NAME}.base-image.txt"
+echo "Base image info written to ${OUTPUT_NAME}.base-image.txt"
