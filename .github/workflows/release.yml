@@ -210,16 +210,18 @@ jobs:
           path: ble-ssh-windows-${{ matrix.suffix }}.zip
 
   build-ble-ssh-linux:
-    name: Build ble-ssh (Linux)
-    runs-on: ubuntu-latest
+    name: Build ble-ssh (Linux ${{ matrix.suffix }})
+    runs-on: ${{ matrix.runs_on }}
     strategy:
       fail-fast: false
       matrix:
         include:
           - target: x86_64-unknown-linux-gnu
             suffix: x86_64
+            runs_on: ubuntu-latest
           - target: aarch64-unknown-linux-gnu
             suffix: aarch64
+            runs_on: self-hosted
 
     steps:
       - name: Checkout
@@ -231,30 +233,14 @@ jobs:
           toolchain: stable
           targets: ${{ matrix.target }}
 
-      - name: Install dependencies (x86_64)
-        if: matrix.target == 'x86_64-unknown-linux-gnu'
+      - name: Install dependencies
         run: |
           sudo apt-get update
           sudo apt-get install -y libdbus-1-dev libgtk-3-dev libxdo-dev pkg-config
 
-      - name: Install cross (aarch64)
-        if: matrix.target == 'aarch64-unknown-linux-gnu'
-        run: |
-          if command -v cross >/dev/null 2>&1; then
-            cross --version
-          else
-            cargo install cross --git https://github.com/cross-rs/cross
-          fi
-
-      - name: Build ble-ssh (x86_64)
-        if: matrix.target == 'x86_64-unknown-linux-gnu'
+      - name: Build ble-ssh
         working-directory: ble-ssh-client
         run: cargo build --release --target ${{ matrix.target }} --bin ble-ssh
-
-      - name: Build ble-ssh (aarch64)
-        if: matrix.target == 'aarch64-unknown-linux-gnu'
-        working-directory: ble-ssh-client
-        run: cross build --release --target ${{ matrix.target }} --bin ble-ssh
 
       - name: Package binary
         run: |
