@@ -211,29 +211,6 @@ fi
 
 # ── Set WiFi regulatory country & unlock WiFi ───────────────────────────
 
-echo "Setting WiFi country to GB ..."
-# /etc/default/crda — used by crda / wireless-regdb
-mkdir -p "$MOUNT_DIR/etc/default"
-echo 'REGDOMAIN=GB' > "$MOUNT_DIR/etc/default/crda"
-
-# wpa_supplicant.conf — country is read by wpa_supplicant on boot
-WPA_CONF="$MOUNT_DIR/etc/wpa_supplicant/wpa_supplicant.conf"
-mkdir -p "$(dirname "$WPA_CONF")"
-if [ -f "$WPA_CONF" ]; then
-    # Replace existing country= or prepend if missing
-    if grep -q '^country=' "$WPA_CONF"; then
-        sed -i 's/^country=.*/country=GB/' "$WPA_CONF"
-    else
-        sed -i '1s/^/country=GB\n/' "$WPA_CONF"
-    fi
-else
-    cat > "$WPA_CONF" <<'WPA'
-country=GB
-ctrl_interface=DIR=/var/run/wpa_supplicant GROUP=netdev
-update_config=1
-WPA
-fi
-
 echo "Creating WiFi unblock service ..."
 cat > "$MOUNT_DIR/etc/systemd/system/wifi-unblock.service" <<'WIFISERVICE'
 [Unit]
@@ -243,7 +220,7 @@ Wants=network-pre.target
 
 [Service]
 Type=oneshot
-ExecStart=/sbin/iw reg set GB
+ExecStart=/usr/bin/raspi-config nonint do_wifi_country GB
 ExecStart=/usr/sbin/rfkill unblock wifi
 ExecStart=/usr/bin/nmcli radio wifi on
 RemainAfterExit=yes
@@ -254,6 +231,23 @@ WIFISERVICE
 
 ln -sf /etc/systemd/system/wifi-unblock.service \
     "$MOUNT_DIR/etc/systemd/system/multi-user.target.wants/wifi-unblock.service"
+
+# ── Disable Bluetooth panel plugin (desktop only) ───────────────────────
+# The wf-panel-pi bluetooth widget triggers continuous BLE scanning, which
+# conflicts with BLE advertising on the BCM43430A1 (single-radio chip).
+# HCI opcode 0x2005 (LE Set Advertising Parameters) fails with EBUSY (-16)
+# whenever scanning and advertising run simultaneously.
+
+if [ "$VARIANT" = "desktop" ]; then
+    echo "Removing bluetooth widget from wf-panel-pi config ..."
+    PANEL_CFG="$MOUNT_DIR/etc/xdg/wf-panel-pi/wf-panel-pi.ini"
+    if [ -f "$PANEL_CFG" ]; then
+        sed -i 's/ bluetooth / /g' "$PANEL_CFG"
+        echo "  bluetooth widget removed from panel config"
+    else
+        echo "  wf-panel-pi.ini not found, skipping"
+    fi
+fi
 
 # ── Unmount & detach ────────────────────────────────────────────────────
 
