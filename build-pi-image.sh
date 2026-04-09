@@ -156,7 +156,7 @@ Wants=bluetooth.target
 
 [Service]
 ExecStartPre=/usr/sbin/rfkill unblock bluetooth
-ExecStart=/opt/sugar-wifi-config/sugar-wifi-conf --name pisugar --key pisugar --config /opt/sugar-wifi-config/custom_config.json
+ExecStart=/opt/sugar-wifi-config/sugar-wifi-conf --name raspberrypi --key pisugar --config /opt/sugar-wifi-config/custom_config.json
 WorkingDirectory=/opt/sugar-wifi-config
 Restart=always
 RestartSec=5
@@ -245,6 +245,7 @@ Wants=network-pre.target
 Type=oneshot
 ExecStart=/sbin/iw reg set GB
 ExecStart=/usr/sbin/rfkill unblock wifi
+ExecStart=/usr/bin/nmcli radio wifi on
 RemainAfterExit=yes
 
 [Install]

@@ -67,7 +67,7 @@ cd rust && sudo bash install.sh
 ```
 # 可修改 /etc/systemd/system/sugar-wifi-config.service 文件改变运行参数
 # 例如：
-sugar-wifi-conf serve --name pisugar --key mykey --config /opt/sugar-wifi-config/custom_config.json
+sugar-wifi-conf serve --name raspberrypi --key mykey --config /opt/sugar-wifi-config/custom_config.json
 ```
 
 安装完成后重启树莓派。进入PiSugar APP的Wifi Config页面或者使用微信扫描二维码进入小程序，即可控制树莓派。

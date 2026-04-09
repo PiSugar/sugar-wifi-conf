@@ -1,3 +1,4 @@
+mod aliases;
 mod app;
 mod ble;
 mod speed;

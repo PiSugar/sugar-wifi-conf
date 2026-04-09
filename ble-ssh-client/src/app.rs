@@ -5,12 +5,13 @@ use std::time::{Duration, Instant};
 use btleplug::api::{Central as _, Peripheral as _};
 use btleplug::platform::{Adapter, Peripheral};
 use tao::event_loop::{ControlFlow, EventLoopBuilder};
-use tray_icon::menu::{CheckMenuItem, Menu, MenuEvent, MenuItem, MenuId, PredefinedMenuItem, Submenu};
+use tray_icon::menu::{Menu, MenuEvent, MenuItem, MenuId, PredefinedMenuItem, Submenu};
 use tray_icon::TrayIconBuilder;
 
 use tokio::sync::mpsc;
 use tokio::task::JoinHandle;
 
+use crate::aliases::DeviceAliases;
 use crate::ble::{self, BleTunnel};
 use crate::speed::SpeedTracker;
 use crate::tunnel;
@@ -125,6 +126,82 @@ fn copy_to_clipboard(text: &str) {
     log::warn!("No clipboard tool found (install xclip, xsel, or wl-copy)");
 }
 
+// ── Prompt for device alias ───────────────────────────
+
+#[cfg(target_os = "macos")]
+fn prompt_alias(prompt: &str, default: &str) -> Option<String> {
+    let script = format!(
+        "set r to display dialog \"{}\" default answer \"{}\" buttons {{\"Cancel\", \"OK\"}} default button \"OK\"\n\
+         return text returned of r",
+        prompt.replace('"', "\\\""),
+        default.replace('"', "\\\""),
+    );
+    let output = std::process::Command::new("osascript")
+        .arg("-e")
+        .arg(&script)
+        .output()
+        .ok()?;
+    if output.status.success() {
+        Some(String::from_utf8_lossy(&output.stdout).trim().to_string())
+    } else {
+        None
+    }
+}
+
+#[cfg(target_os = "windows")]
+fn prompt_alias(prompt: &str, default: &str) -> Option<String> {
+    let ps_script = format!(
+        "Add-Type -AssemblyName Microsoft.VisualBasic; \
+         [Microsoft.VisualBasic.Interaction]::InputBox('{}', 'Set Alias', '{}')",
+        prompt.replace('\'', "''"),
+        default.replace('\'', "''"),
+    );
+    let output = std::process::Command::new("powershell")
+        .args(["-NoProfile", "-Command", &ps_script])
+        .output()
+        .ok()?;
+    if output.status.success() {
+        let result = String::from_utf8_lossy(&output.stdout).trim().to_string();
+        if result.is_empty() && !default.is_empty() {
+            // User pressed Cancel
+            None
+        } else {
+            Some(result)
+        }
+    } else {
+        None
+    }
+}
+
+#[cfg(target_os = "linux")]
+fn prompt_alias(prompt: &str, default: &str) -> Option<String> {
+    // Try zenity first, then kdialog
+    let dialogs: &[(&str, Vec<String>)] = &[
+        ("zenity", vec![
+            "--entry".to_string(),
+            format!("--text={}", prompt),
+            format!("--entry-text={}", default),
+            "--title=Set Alias".to_string(),
+        ]),
+        ("kdialog", vec![
+            "--inputbox".to_string(),
+            prompt.to_string(),
+            default.to_string(),
+        ]),
+    ];
+    for (cmd, args) in dialogs {
+        if let Ok(output) = std::process::Command::new(cmd).args(args).output() {
+            if output.status.success() {
+                return Some(String::from_utf8_lossy(&output.stdout).trim().to_string());
+            } else {
+                return None; // User cancelled
+            }
+        }
+    }
+    log::warn!("No dialog tool found (install zenity or kdialog)");
+    None
+}
+
 // ── Messages ──────────────────────────────────────────
 
 /// From async workers → UI thread.
@@ -159,6 +236,7 @@ struct DeviceInfo {
 struct AppState {
     devices: Vec<(String, DeviceInfo)>,
     scanning: bool,
+    aliases: DeviceAliases,
 }
 
 impl AppState {
@@ -166,6 +244,15 @@ impl AppState {
         Self {
             devices: Vec::new(),
             scanning: true,
+            aliases: DeviceAliases::load(),
+        }
+    }
+
+    fn display_name(&self, id: &str, info: &DeviceInfo) -> String {
+        if let Some(alias) = self.aliases.get(id) {
+            alias.to_string()
+        } else {
+            info.name.clone()
         }
     }
 }
@@ -395,9 +482,28 @@ pub fn run() {
                 } else if let Some(dev_id) = eid_str.strip_prefix("dc:") {
                     // Disconnect
                     let _ = cmd_tx.send(Cmd::Disconnect(dev_id.to_string()));
-                } else if let Some(dev_id) = eid_str.strip_prefix("d:") {
-                    // Connect (click on disconnected device)
+                } else if let Some(dev_id) = eid_str.strip_prefix("connect:") {
+                    // Connect from submenu
                     let _ = cmd_tx.send(Cmd::Connect(dev_id.to_string()));
+                } else if let Some(dev_id) = eid_str.strip_prefix("alias:") {
+                    // Set alias via platform dialog
+                    let dev_id = dev_id.to_string();
+                    let current = state.aliases.get(&dev_id).unwrap_or("").to_string();
+                    let dev_name = state.devices.iter()
+                        .find(|(did, _)| *did == dev_id)
+                        .map(|(_, info)| info.name.as_str())
+                        .unwrap_or("device");
+                    let prompt_msg = format!("Enter alias for {} (leave empty to clear):", dev_name);
+                    if let Some(alias) = prompt_alias(&prompt_msg, &current) {
+                        let alias = alias.trim().to_string();
+                        if alias.is_empty() {
+                            state.aliases.remove(&dev_id);
+                        } else {
+                            state.aliases.set(&dev_id, &alias);
+                        }
+                        let menu = build_menu(&state);
+                        tray.set_menu(Some(Box::new(menu)));
+                    }
                 }
             }
         }
@@ -451,13 +557,19 @@ fn build_menu(state: &AppState) -> Menu {
     };
 
     for (id, info) in &sorted {
+        let display = state.display_name(id, info);
         if let Some(port) = info.tunnel_port {
             // Connected: submenu with actions
             let user = info.ssh_user.as_deref().unwrap_or("pi");
-            let text = format!("✓ {} → {}@localhost:{}", info.name, user, port);
+            let text = format!("✓ {} → {}@localhost:{}", display, user, port);
             let ssh_label = format!("Open SSH ({}@localhost -p {})", user, port);
+            let alias_label = if state.aliases.get(id).is_some() {
+                "Rename"
+            } else {
+                "Set Alias"
+            };
             let sub = Submenu::with_id_and_items(
-                MenuId::new(&format!("d:{}", id)),
+                MenuId::new(&format!("sub:{}", id)),
                 &text,
                 true,
                 &[
@@ -475,6 +587,13 @@ fn build_menu(state: &AppState) -> Menu {
                     ),
                     &PredefinedMenuItem::separator(),
                     &MenuItem::with_id(
+                        MenuId::new(&format!("alias:{}", id)),
+                        alias_label,
+                        true,
+                        None,
+                    ),
+                    &PredefinedMenuItem::separator(),
+                    &MenuItem::with_id(
                         MenuId::new(&format!("dc:{}", id)),
                         "Disconnect",
                         true,
@@ -485,23 +604,52 @@ fn build_menu(state: &AppState) -> Menu {
             .unwrap();
             let _ = menu.append(&sub);
         } else if info.connecting {
-            // Connecting: disabled, no checkmark
-            let text = format!("{} - Connecting...", info.name);
-            let _ = menu.append(&MenuItem::with_id(
-                MenuId::new(&format!("d:{}", id)),
+            // Connecting: disabled submenu
+            let text = format!("{} ⏳", display);
+            let sub = Submenu::with_id_and_items(
+                MenuId::new(&format!("sub:{}", id)),
                 &text,
-                false,
-                None,
-            ));
-        } else {
-            // Disconnected: no checkmark, clickable
-            let _ = menu.append(&CheckMenuItem::with_id(
-                MenuId::new(&format!("d:{}", id)),
-                &info.name,
                 true,
-                false,
-                None,
-            ));
+                &[
+                    &MenuItem::with_id(
+                        MenuId::new("_info"),
+                        "Connecting...",
+                        false,
+                        None,
+                    ),
+                ],
+            )
+            .unwrap();
+            let _ = menu.append(&sub);
+        } else {
+            // Disconnected: submenu with Connect + Set Alias
+            let alias_label = if state.aliases.get(id).is_some() {
+                "Rename"
+            } else {
+                "Set Alias"
+            };
+            let sub = Submenu::with_id_and_items(
+                MenuId::new(&format!("sub:{}", id)),
+                &display,
+                true,
+                &[
+                    &MenuItem::with_id(
+                        MenuId::new(&format!("connect:{}", id)),
+                        "Connect",
+                        true,
+                        None,
+                    ),
+                    &PredefinedMenuItem::separator(),
+                    &MenuItem::with_id(
+                        MenuId::new(&format!("alias:{}", id)),
+                        alias_label,
+                        true,
+                        None,
+                    ),
+                ],
+            )
+            .unwrap();
+            let _ = menu.append(&sub);
         }
     }
 

@@ -80,10 +80,10 @@ cd rust && sudo bash install.sh
 sugar-wifi-conf
 
 # Start with custom parameters
-sugar-wifi-conf --name pisugar --key mykey --config /path/to/custom_config.json
+sugar-wifi-conf --name raspberrypi --key mykey --config /path/to/custom_config.json
 
 # Or use 'serve' subcommand explicitly
-sugar-wifi-conf serve --name pisugar --key mykey
+sugar-wifi-conf serve --name raspberrypi --key mykey
 ```
 
 #### Interactive config editor

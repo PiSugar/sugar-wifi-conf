@@ -78,9 +78,14 @@ pub async fn scan_devices(
                         if props.services.contains(&service_uuid) {
                             let id_str = format!("{:?}", id);
                             if seen.insert(id_str.clone()) {
-                                let name = props
+                                let raw_name = props
                                     .local_name
                                     .unwrap_or_else(|| "Unknown".to_string());
+                                // Strip trailing "[...]" suffix (e.g. "cm5 [pisugar]" → "cm5")
+                                let name = raw_name
+                                    .find(" [")
+                                    .map(|i| raw_name[..i].to_string())
+                                    .unwrap_or(raw_name);
                                 log::info!("Scan: found {} ({})", name, id_str);
                                 let _ = device_tx.send(ScannedDevice {
                                     peripheral: p,

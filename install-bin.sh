@@ -107,7 +107,7 @@ Wants=bluetooth.target
 
 [Service]
 ExecStartPre=/usr/sbin/rfkill unblock bluetooth
-ExecStart=$INSTALL_DIR/sugar-wifi-conf --name pisugar --key pisugar --config $INSTALL_DIR/custom_config.json
+ExecStart=$INSTALL_DIR/sugar-wifi-conf --name raspberrypi --key pisugar --config $INSTALL_DIR/custom_config.json
 WorkingDirectory=$INSTALL_DIR
 Restart=always
 RestartSec=5
