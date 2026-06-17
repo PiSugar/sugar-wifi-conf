@@ -1,7 +1,11 @@
+use std::process::Stdio;
 use std::sync::Arc;
 
 use bluer::gatt::local::{Application, Service};
+use tokio::process::Command;
 use tokio::sync::watch;
+use tokio::task::JoinHandle;
+use tokio::time::{interval, timeout, Duration};
 
 use crate::config::{Args, CustomConfig};
 use crate::uuid as suuid;
@@ -97,14 +101,32 @@ pub async fn run_ble_server(args: Args, custom_config: CustomConfig) -> bluer::R
     // Set up advertising
     let le_advertisement = bluer::adv::Advertisement {
         advertisement_type: bluer::adv::Type::Peripheral,
-        service_uuids: vec![suuid::parse_uuid(suuid::SERVICE_ID)].into_iter().collect(),
-        local_name: Some(args.name.clone()),
-        discoverable: Some(true),
+        service_uuids: vec![suuid::parse_uuid(suuid::SERVICE_ID)]
+            .into_iter()
+            .collect(),
         ..Default::default()
     };
 
-    let adv_handle = adapter.advertise(le_advertisement).await?;
-    log::info!("Advertising as '{}' started", args.name);
+    let mut hci_watchdog: Option<JoinHandle<()>> = None;
+    let adv_handle = match adapter.advertise(le_advertisement).await {
+        Ok(handle) => {
+            log::info!("Advertising as '{}' started", args.name);
+            Some(handle)
+        }
+        Err(err) => {
+            log::warn!(
+                "BlueZ D-Bus advertisement failed: {}; falling back to hcitool",
+                err
+            );
+            if start_hci_advertisement(suuid::SERVICE_ID).await {
+                log::info!("Advertising via hcitool fallback started");
+                hci_watchdog = Some(tokio::spawn(maintain_hci_advertisement()));
+                None
+            } else {
+                return Err(err);
+            }
+        }
+    };
 
     log::info!("BLE service running. Press Ctrl+C to stop.");
 
@@ -112,8 +134,99 @@ pub async fn run_ble_server(args: Args, custom_config: CustomConfig) -> bluer::R
     tokio::signal::ctrl_c().await.ok();
 
     log::info!("Shutting down...");
+    if adv_handle.is_none() {
+        if let Some(task) = hci_watchdog {
+            task.abort();
+        }
+        stop_hci_advertisement().await;
+    }
     drop(adv_handle);
     drop(app_handle);
 
     Ok(())
+}
+
+async fn start_hci_advertisement(service_uuid: &str) -> bool {
+    stop_hci_advertisement().await;
+
+    let set_params = [
+        "cmd", "0x08", "0x0006", "00", "08", "00", "08", "00", "00", "00", "00", "00", "00", "00",
+        "00", "00", "07", "00",
+    ];
+    if !run_hcitool_success(&set_params).await {
+        return false;
+    }
+
+    let adv_data = hci_service_uuid_adv_data(service_uuid);
+    if !run_hcitool_success(&adv_data).await {
+        return false;
+    }
+
+    run_hcitool_success(&["cmd", "0x08", "0x000A", "01"]).await
+}
+
+async fn stop_hci_advertisement() {
+    let _ = run_hcitool(&["cmd", "0x08", "0x000A", "00"]).await;
+}
+
+async fn maintain_hci_advertisement() {
+    let mut ticker = interval(Duration::from_secs(3));
+    loop {
+        ticker.tick().await;
+        let _ = run_hcitool(&["cmd", "0x08", "0x000A", "01"]).await;
+    }
+}
+
+async fn run_hcitool_success(args: &[&str]) -> bool {
+    match run_hcitool(args).await {
+        Ok(output) if output.status.success() && hci_command_succeeded(&output.stdout) => true,
+        Ok(output) => {
+            log::error!(
+                "hcitool {} failed: status={:?}, stdout={}, stderr={}",
+                args.join(" "),
+                output.status.code(),
+                String::from_utf8_lossy(&output.stdout).trim(),
+                String::from_utf8_lossy(&output.stderr).trim()
+            );
+            false
+        }
+        Err(err) => {
+            log::error!("failed to run hcitool {}: {}", args.join(" "), err);
+            false
+        }
+    }
+}
+
+async fn run_hcitool(args: &[&str]) -> std::io::Result<std::process::Output> {
+    let mut command = Command::new("hcitool");
+    command
+        .args(["-i", "hci0"])
+        .args(args)
+        .stdin(Stdio::null())
+        .kill_on_drop(true);
+
+    match timeout(Duration::from_secs(5), command.output()).await {
+        Ok(result) => result,
+        Err(_) => Err(std::io::Error::new(
+            std::io::ErrorKind::TimedOut,
+            format!("hcitool {} timed out", args.join(" ")),
+        )),
+    }
+}
+
+fn hci_service_uuid_adv_data(service_uuid: &str) -> Vec<&'static str> {
+    match service_uuid {
+        "FD2B4448AA0F4A15A62FEB0BE77A0000" => vec![
+            "cmd", "0x08", "0x0008", "15", "02", "01", "06", "11", "07", "00", "00", "7A", "E7",
+            "0B", "EB", "2F", "A6", "15", "4A", "0F", "AA", "48", "44", "2B", "FD", "00", "00",
+            "00", "00", "00", "00", "00", "00", "00", "00",
+        ],
+        _ => vec!["cmd", "0x08", "0x0008", "03", "02", "01", "06"],
+    }
+}
+
+fn hci_command_succeeded(stdout: &[u8]) -> bool {
+    String::from_utf8_lossy(stdout).lines().any(|line| {
+        line.trim() == "01 0A 20 00" || line.trim() == "01 08 20 00" || line.trim() == "01 06 20 00"
+    })
 }
