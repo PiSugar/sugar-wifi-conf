@@ -22,6 +22,16 @@ pub async fn run_ble_server(args: Args, custom_config: CustomConfig) -> bluer::R
         adapter.name(),
         adapter.address().await?
     );
+    if let Err(err) = adapter.set_alias(args.name.clone()).await {
+        log::warn!(
+            "Failed to set Bluetooth adapter alias to '{}': {}",
+            args.name,
+            err
+        );
+    }
+    if let Err(err) = adapter.set_pairable(false).await {
+        log::warn!("Failed to disable Bluetooth pairing: {}", err);
+    }
 
     // Channel for wifi config notify messages (input_notify → notify_message)
     let (notify_tx, notify_rx) = watch::channel::<String>(String::new());
@@ -105,6 +115,7 @@ pub async fn run_ble_server(args: Args, custom_config: CustomConfig) -> bluer::R
         service_uuids: vec![suuid::parse_uuid(suuid::SERVICE_ID)]
             .into_iter()
             .collect(),
+        local_name: Some(args.name.clone()),
         discoverable: Some(true),
         ..Default::default()
     };
@@ -120,7 +131,7 @@ pub async fn run_ble_server(args: Args, custom_config: CustomConfig) -> bluer::R
                 "BlueZ D-Bus advertisement failed: {}; falling back to controller advertising",
                 err
             );
-            if start_mgmt_advertisement(suuid::SERVICE_ID).await {
+            if start_mgmt_advertisement(suuid::SERVICE_ID, &args.name).await {
                 log::info!("Advertising via Linux MGMT fallback started");
                 None
             } else if start_hci_advertisement(suuid::SERVICE_ID).await {
@@ -152,13 +163,14 @@ pub async fn run_ble_server(args: Args, custom_config: CustomConfig) -> bluer::R
     Ok(())
 }
 
-async fn start_mgmt_advertisement(service_uuid: &str) -> bool {
+async fn start_mgmt_advertisement(service_uuid: &str, local_name: &str) -> bool {
     stop_hci_advertisement().await;
 
     let service_uuid = service_uuid.to_string();
+    let local_name = local_name.to_string();
     match timeout(
         Duration::from_secs(5),
-        task::spawn_blocking(move || mgmt_add_advertising(&service_uuid)),
+        task::spawn_blocking(move || mgmt_add_advertising(&service_uuid, &local_name)),
     )
     .await
     {
@@ -274,6 +286,7 @@ fn hci_command_succeeded(stdout: &[u8]) -> bool {
 }
 
 const MGMT_INDEX: u16 = 0;
+const MGMT_OP_SET_BONDABLE: u16 = 0x0009;
 const MGMT_OP_ADD_ADVERTISING: u16 = 0x003e;
 const MGMT_OP_REMOVE_ADVERTISING: u16 = 0x003f;
 const MGMT_EV_CMD_COMPLETE: u16 = 0x0001;
@@ -294,13 +307,17 @@ struct SockAddrHci {
     hci_channel: u16,
 }
 
-fn mgmt_add_advertising(service_uuid: &str) -> std::io::Result<()> {
+fn mgmt_add_advertising(service_uuid: &str, local_name: &str) -> std::io::Result<()> {
     let socket = MgmtSocket::open()?;
 
     let _ = socket.send_cmd(MGMT_OP_REMOVE_ADVERTISING, MGMT_INDEX, &[0x00]);
+    if let Err(err) = socket.send_cmd(MGMT_OP_SET_BONDABLE, MGMT_INDEX, &[0x00]) {
+        log::warn!("Failed to disable Bluetooth bonding via MGMT: {}", err);
+    }
 
     let adv_data = mgmt_service_uuid_adv_data(service_uuid);
-    let mut payload = Vec::with_capacity(11 + adv_data.len());
+    let scan_rsp = mgmt_local_name_scan_rsp(local_name);
+    let mut payload = Vec::with_capacity(11 + adv_data.len() + scan_rsp.len());
     payload.push(1); // instance
     payload.extend_from_slice(
         &(MGMT_ADV_FLAG_CONNECTABLE | MGMT_ADV_FLAG_MANAGED_FLAGS).to_le_bytes(),
@@ -308,8 +325,9 @@ fn mgmt_add_advertising(service_uuid: &str) -> std::io::Result<()> {
     payload.extend_from_slice(&0u16.to_le_bytes()); // duration
     payload.extend_from_slice(&0u16.to_le_bytes()); // timeout
     payload.push(adv_data.len() as u8);
-    payload.push(0); // scan response length
+    payload.push(scan_rsp.len() as u8);
     payload.extend_from_slice(&adv_data);
+    payload.extend_from_slice(&scan_rsp);
 
     socket.send_cmd(MGMT_OP_ADD_ADVERTISING, MGMT_INDEX, &payload)
 }
@@ -456,4 +474,29 @@ fn mgmt_service_uuid_adv_data(service_uuid: &str) -> Vec<u8> {
         ],
         _ => Vec::new(),
     }
+}
+
+fn mgmt_local_name_scan_rsp(local_name: &str) -> Vec<u8> {
+    let local_name = truncate_utf8(local_name.trim(), 29);
+    if local_name.is_empty() {
+        return Vec::new();
+    }
+
+    let mut data = Vec::with_capacity(local_name.len() + 2);
+    data.push((local_name.len() + 1) as u8);
+    data.push(0x09); // Complete Local Name
+    data.extend_from_slice(local_name.as_bytes());
+    data
+}
+
+fn truncate_utf8(value: &str, max_bytes: usize) -> &str {
+    if value.len() <= max_bytes {
+        return value;
+    }
+
+    let mut end = max_bytes;
+    while !value.is_char_boundary(end) {
+        end -= 1;
+    }
+    &value[..end]
 }
