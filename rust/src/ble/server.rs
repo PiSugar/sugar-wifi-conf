@@ -1,7 +1,11 @@
+use std::process::Stdio;
 use std::sync::Arc;
 
 use bluer::gatt::local::{Application, Service};
+use tokio::process::Command;
 use tokio::sync::watch;
+use tokio::task;
+use tokio::time::{timeout, Duration};
 
 use crate::config::{Args, CustomConfig};
 use crate::uuid as suuid;
@@ -97,14 +101,34 @@ pub async fn run_ble_server(args: Args, custom_config: CustomConfig) -> bluer::R
     // Set up advertising
     let le_advertisement = bluer::adv::Advertisement {
         advertisement_type: bluer::adv::Type::Peripheral,
-        service_uuids: vec![suuid::parse_uuid(suuid::SERVICE_ID)].into_iter().collect(),
-        local_name: Some(args.name.clone()),
+        service_uuids: vec![suuid::parse_uuid(suuid::SERVICE_ID)]
+            .into_iter()
+            .collect(),
         discoverable: Some(true),
         ..Default::default()
     };
 
-    let adv_handle = adapter.advertise(le_advertisement).await?;
-    log::info!("Advertising as '{}' started", args.name);
+    let adv_handle = match adapter.advertise(le_advertisement).await {
+        Ok(handle) => {
+            log::info!("Advertising as '{}' started", args.name);
+            Some(handle)
+        }
+        Err(err) => {
+            log::warn!(
+                "BlueZ D-Bus advertisement failed: {}; falling back to controller advertising",
+                err
+            );
+            if start_mgmt_advertisement(suuid::SERVICE_ID).await {
+                log::info!("Advertising via Linux MGMT fallback started");
+                None
+            } else if start_hci_advertisement(suuid::SERVICE_ID).await {
+                log::info!("Advertising via hcitool fallback started");
+                None
+            } else {
+                return Err(err);
+            }
+        }
+    };
 
     log::info!("BLE service running. Press Ctrl+C to stop.");
 
@@ -112,8 +136,310 @@ pub async fn run_ble_server(args: Args, custom_config: CustomConfig) -> bluer::R
     tokio::signal::ctrl_c().await.ok();
 
     log::info!("Shutting down...");
+    if adv_handle.is_none() {
+        stop_mgmt_advertisement().await;
+        stop_hci_advertisement().await;
+    }
     drop(adv_handle);
     drop(app_handle);
 
     Ok(())
+}
+
+async fn start_mgmt_advertisement(service_uuid: &str) -> bool {
+    stop_hci_advertisement().await;
+
+    let service_uuid = service_uuid.to_string();
+    match timeout(
+        Duration::from_secs(5),
+        task::spawn_blocking(move || mgmt_add_advertising(&service_uuid)),
+    )
+    .await
+    {
+        Ok(Ok(Ok(()))) => true,
+        Ok(Ok(Err(err))) => {
+            log::error!("Linux MGMT advertising fallback failed: {}", err);
+            false
+        }
+        Ok(Err(err)) => {
+            log::error!("Linux MGMT advertising fallback task failed: {}", err);
+            false
+        }
+        Err(_) => {
+            log::error!("Linux MGMT advertising fallback timed out");
+            false
+        }
+    }
+}
+
+async fn stop_mgmt_advertisement() {
+    let _ = timeout(
+        Duration::from_secs(3),
+        task::spawn_blocking(|| mgmt_remove_advertising(0)),
+    )
+    .await;
+}
+
+async fn start_hci_advertisement(service_uuid: &str) -> bool {
+    stop_hci_advertisement().await;
+
+    let set_params = [
+        "cmd", "0x08", "0x0006", "00", "08", "00", "08", "00", "00", "00", "00", "00", "00", "00",
+        "00", "07", "00",
+    ];
+    if !run_hcitool_success(&set_params).await {
+        return false;
+    }
+
+    let adv_data = hci_service_uuid_adv_data(service_uuid);
+    if !run_hcitool_success(&adv_data).await {
+        return false;
+    }
+
+    run_hcitool_success(&["cmd", "0x08", "0x000A", "01"]).await
+}
+
+async fn stop_hci_advertisement() {
+    let _ = run_hcitool(&["cmd", "0x08", "0x000A", "00"]).await;
+}
+
+async fn run_hcitool_success(args: &[&str]) -> bool {
+    match run_hcitool(args).await {
+        Ok(output) if output.status.success() && hci_command_succeeded(&output.stdout) => true,
+        Ok(output) => {
+            log::error!(
+                "hcitool {} failed: status={:?}, stdout={}, stderr={}",
+                args.join(" "),
+                output.status.code(),
+                String::from_utf8_lossy(&output.stdout).trim(),
+                String::from_utf8_lossy(&output.stderr).trim()
+            );
+            false
+        }
+        Err(err) => {
+            log::error!("failed to run hcitool {}: {}", args.join(" "), err);
+            false
+        }
+    }
+}
+
+async fn run_hcitool(args: &[&str]) -> std::io::Result<std::process::Output> {
+    let mut command_args = vec!["-i", "hci0"];
+    command_args.extend_from_slice(args);
+    run_command("hcitool", &command_args).await
+}
+
+async fn run_command(program: &str, args: &[&str]) -> std::io::Result<std::process::Output> {
+    let mut command = Command::new(program);
+    command.args(args).stdin(Stdio::null()).kill_on_drop(true);
+
+    match timeout(Duration::from_secs(5), command.output()).await {
+        Ok(result) => result,
+        Err(_) => Err(std::io::Error::new(
+            std::io::ErrorKind::TimedOut,
+            format!("{} {} timed out", program, args.join(" ")),
+        )),
+    }
+}
+
+fn hci_service_uuid_adv_data(service_uuid: &str) -> Vec<&'static str> {
+    match service_uuid {
+        "FD2B4448AA0F4A15A62FEB0BE77A0000" => vec![
+            "cmd", "0x08", "0x0008", "15", "02", "01", "06", "11", "07", "00", "00", "7A", "E7",
+            "0B", "EB", "2F", "A6", "15", "4A", "0F", "AA", "48", "44", "2B", "FD", "00", "00",
+            "00", "00", "00", "00", "00", "00", "00", "00",
+        ],
+        _ => vec!["cmd", "0x08", "0x0008", "03", "02", "01", "06"],
+    }
+}
+
+fn hci_command_succeeded(stdout: &[u8]) -> bool {
+    String::from_utf8_lossy(stdout).lines().any(|line| {
+        line.trim() == "01 0A 20 00" || line.trim() == "01 08 20 00" || line.trim() == "01 06 20 00"
+    })
+}
+
+const MGMT_INDEX: u16 = 0;
+const MGMT_OP_ADD_ADVERTISING: u16 = 0x003e;
+const MGMT_OP_REMOVE_ADVERTISING: u16 = 0x003f;
+const MGMT_EV_CMD_COMPLETE: u16 = 0x0001;
+const MGMT_EV_CMD_STATUS: u16 = 0x0002;
+const MGMT_STATUS_SUCCESS: u8 = 0x00;
+const MGMT_STATUS_INVALID_PARAMS: u8 = 0x0d;
+const MGMT_ADV_FLAG_CONNECTABLE: u32 = 1 << 0;
+const MGMT_ADV_FLAG_MANAGED_FLAGS: u32 = 1 << 3;
+
+const HCI_CHANNEL_CONTROL: u16 = 3;
+const HCI_DEV_NONE: u16 = 0xffff;
+const BTPROTO_HCI: libc::c_int = 1;
+
+#[repr(C)]
+struct SockAddrHci {
+    hci_family: libc::sa_family_t,
+    hci_dev: u16,
+    hci_channel: u16,
+}
+
+fn mgmt_add_advertising(service_uuid: &str) -> std::io::Result<()> {
+    let socket = MgmtSocket::open()?;
+
+    let _ = socket.send_cmd(MGMT_OP_REMOVE_ADVERTISING, MGMT_INDEX, &[0x00]);
+
+    let adv_data = mgmt_service_uuid_adv_data(service_uuid);
+    let mut payload = Vec::with_capacity(11 + adv_data.len());
+    payload.push(1); // instance
+    payload.extend_from_slice(
+        &(MGMT_ADV_FLAG_CONNECTABLE | MGMT_ADV_FLAG_MANAGED_FLAGS).to_le_bytes(),
+    );
+    payload.extend_from_slice(&0u16.to_le_bytes()); // duration
+    payload.extend_from_slice(&0u16.to_le_bytes()); // timeout
+    payload.push(adv_data.len() as u8);
+    payload.push(0); // scan response length
+    payload.extend_from_slice(&adv_data);
+
+    socket.send_cmd(MGMT_OP_ADD_ADVERTISING, MGMT_INDEX, &payload)
+}
+
+fn mgmt_remove_advertising(instance: u8) -> std::io::Result<()> {
+    MgmtSocket::open()?.send_cmd(MGMT_OP_REMOVE_ADVERTISING, MGMT_INDEX, &[instance])
+}
+
+struct MgmtSocket {
+    fd: libc::c_int,
+}
+
+impl MgmtSocket {
+    fn open() -> std::io::Result<Self> {
+        let fd = unsafe {
+            libc::socket(
+                libc::AF_BLUETOOTH,
+                libc::SOCK_RAW | libc::SOCK_CLOEXEC,
+                BTPROTO_HCI,
+            )
+        };
+        if fd < 0 {
+            return Err(std::io::Error::last_os_error());
+        }
+
+        let socket = Self { fd };
+        let addr = SockAddrHci {
+            hci_family: libc::AF_BLUETOOTH as libc::sa_family_t,
+            hci_dev: HCI_DEV_NONE,
+            hci_channel: HCI_CHANNEL_CONTROL,
+        };
+
+        let ret = unsafe {
+            libc::bind(
+                socket.fd,
+                &addr as *const SockAddrHci as *const libc::sockaddr,
+                std::mem::size_of::<SockAddrHci>() as libc::socklen_t,
+            )
+        };
+        if ret < 0 {
+            return Err(std::io::Error::last_os_error());
+        }
+
+        let timeout = libc::timeval {
+            tv_sec: 2,
+            tv_usec: 0,
+        };
+        let ret = unsafe {
+            libc::setsockopt(
+                socket.fd,
+                libc::SOL_SOCKET,
+                libc::SO_RCVTIMEO,
+                &timeout as *const libc::timeval as *const libc::c_void,
+                std::mem::size_of::<libc::timeval>() as libc::socklen_t,
+            )
+        };
+        if ret < 0 {
+            return Err(std::io::Error::last_os_error());
+        }
+
+        Ok(socket)
+    }
+
+    fn send_cmd(&self, opcode: u16, index: u16, payload: &[u8]) -> std::io::Result<()> {
+        let mut packet = Vec::with_capacity(6 + payload.len());
+        packet.extend_from_slice(&opcode.to_le_bytes());
+        packet.extend_from_slice(&index.to_le_bytes());
+        packet.extend_from_slice(&(payload.len() as u16).to_le_bytes());
+        packet.extend_from_slice(payload);
+
+        let written = unsafe {
+            libc::send(
+                self.fd,
+                packet.as_ptr() as *const libc::c_void,
+                packet.len(),
+                0,
+            )
+        };
+        if written < 0 {
+            return Err(std::io::Error::last_os_error());
+        }
+
+        self.wait_for_cmd_status(opcode)
+    }
+
+    fn wait_for_cmd_status(&self, opcode: u16) -> std::io::Result<()> {
+        let mut buf = [0u8; 1024];
+        loop {
+            let len =
+                unsafe { libc::recv(self.fd, buf.as_mut_ptr() as *mut libc::c_void, buf.len(), 0) };
+            if len < 0 {
+                return Err(std::io::Error::last_os_error());
+            }
+
+            let len = len as usize;
+            if len < 9 {
+                continue;
+            }
+
+            let event = u16::from_le_bytes([buf[0], buf[1]]);
+            let event_index = u16::from_le_bytes([buf[2], buf[3]]);
+            let event_len = u16::from_le_bytes([buf[4], buf[5]]) as usize;
+            if event_index != MGMT_INDEX || 6 + event_len > len {
+                continue;
+            }
+
+            if event == MGMT_EV_CMD_COMPLETE || event == MGMT_EV_CMD_STATUS {
+                let event_opcode = u16::from_le_bytes([buf[6], buf[7]]);
+                let status = buf[8];
+                if event_opcode != opcode {
+                    continue;
+                }
+
+                if status == MGMT_STATUS_SUCCESS {
+                    return Ok(());
+                }
+
+                if opcode == MGMT_OP_REMOVE_ADVERTISING && status == MGMT_STATUS_INVALID_PARAMS {
+                    return Ok(());
+                }
+
+                return Err(std::io::Error::new(
+                    std::io::ErrorKind::Other,
+                    format!("MGMT opcode 0x{opcode:04x} failed with status 0x{status:02x}"),
+                ));
+            }
+        }
+    }
+}
+
+impl Drop for MgmtSocket {
+    fn drop(&mut self) {
+        unsafe {
+            libc::close(self.fd);
+        }
+    }
+}
+
+fn mgmt_service_uuid_adv_data(service_uuid: &str) -> Vec<u8> {
+    match service_uuid {
+        "FD2B4448AA0F4A15A62FEB0BE77A0000" => vec![
+            0x11, 0x07, 0x00, 0x00, 0x7A, 0xE7, 0x0B, 0xEB, 0x2F, 0xA6, 0x15, 0x4A, 0x0F, 0xAA,
+            0x48, 0x44, 0x2B, 0xFD,
+        ],
+        _ => Vec::new(),
+    }
 }

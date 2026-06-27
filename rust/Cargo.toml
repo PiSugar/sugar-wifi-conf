@@ -22,6 +22,7 @@ uuid = "1"
 futures = "0.3"
 dialoguer = "0.11"
 console = "0.15"
+libc = "0.2"
 
 [profile.release]
 opt-level = "s"
