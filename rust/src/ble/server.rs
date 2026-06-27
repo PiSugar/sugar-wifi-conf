@@ -5,7 +5,8 @@ use bluer::gatt::local::{Application, Service};
 use tokio::process::Command;
 use tokio::sync::watch;
 use tokio::task;
-use tokio::time::{timeout, Duration};
+use tokio::task::JoinHandle;
+use tokio::time::{interval, timeout, Duration};
 
 use crate::config::{Args, CustomConfig};
 use crate::uuid as suuid;
@@ -108,6 +109,7 @@ pub async fn run_ble_server(args: Args, custom_config: CustomConfig) -> bluer::R
         ..Default::default()
     };
 
+    let mut hci_watchdog: Option<JoinHandle<()>> = None;
     let adv_handle = match adapter.advertise(le_advertisement).await {
         Ok(handle) => {
             log::info!("Advertising as '{}' started", args.name);
@@ -123,6 +125,7 @@ pub async fn run_ble_server(args: Args, custom_config: CustomConfig) -> bluer::R
                 None
             } else if start_hci_advertisement(suuid::SERVICE_ID).await {
                 log::info!("Advertising via hcitool fallback started");
+                hci_watchdog = Some(tokio::spawn(maintain_hci_advertisement()));
                 None
             } else {
                 return Err(err);
@@ -138,6 +141,9 @@ pub async fn run_ble_server(args: Args, custom_config: CustomConfig) -> bluer::R
     log::info!("Shutting down...");
     if adv_handle.is_none() {
         stop_mgmt_advertisement().await;
+        if let Some(task) = hci_watchdog {
+            task.abort();
+        }
         stop_hci_advertisement().await;
     }
     drop(adv_handle);
@@ -201,6 +207,14 @@ async fn start_hci_advertisement(service_uuid: &str) -> bool {
 
 async fn stop_hci_advertisement() {
     let _ = run_hcitool(&["cmd", "0x08", "0x000A", "00"]).await;
+}
+
+async fn maintain_hci_advertisement() {
+    let mut ticker = interval(Duration::from_secs(3));
+    loop {
+        ticker.tick().await;
+        let _ = run_hcitool(&["cmd", "0x08", "0x000A", "01"]).await;
+    }
 }
 
 async fn run_hcitool_success(args: &[&str]) -> bool {
