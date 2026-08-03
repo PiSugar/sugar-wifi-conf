@@ -5,7 +5,6 @@ use bluer::gatt::local::{Application, Service};
 use tokio::process::Command;
 use tokio::sync::watch;
 use tokio::task;
-use tokio::task::JoinHandle;
 use tokio::time::{interval, timeout, Duration};
 
 use crate::config::{Args, CustomConfig};
@@ -32,6 +31,24 @@ pub async fn run_ble_server(args: Args, custom_config: CustomConfig) -> bluer::R
     if let Err(err) = adapter.set_pairable(false).await {
         log::warn!("Failed to disable Bluetooth pairing: {}", err);
     }
+
+    let pairable_guard_adapter = adapter.clone();
+    let pairable_guard = tokio::spawn(async move {
+        let mut ticker = interval(Duration::from_secs(1));
+        loop {
+            ticker.tick().await;
+            match pairable_guard_adapter.is_pairable().await {
+                Ok(true) => {
+                    log::warn!("Bluetooth pairing was enabled externally; disabling it");
+                    if let Err(err) = pairable_guard_adapter.set_pairable(false).await {
+                        log::error!("Failed to disable Bluetooth pairing: {}", err);
+                    }
+                }
+                Ok(false) => {}
+                Err(err) => log::warn!("Failed to read Bluetooth pairing state: {}", err),
+            }
+        }
+    });
 
     // Channel for wifi config notify messages (input_notify → notify_message)
     let (notify_tx, notify_rx) = watch::channel::<String>(String::new());
@@ -115,12 +132,10 @@ pub async fn run_ble_server(args: Args, custom_config: CustomConfig) -> bluer::R
         service_uuids: vec![suuid::parse_uuid(suuid::SERVICE_ID)]
             .into_iter()
             .collect(),
-        local_name: Some(args.name.clone()),
         discoverable: Some(true),
         ..Default::default()
     };
 
-    let mut hci_watchdog: Option<JoinHandle<()>> = None;
     let adv_handle = match adapter.advertise(le_advertisement).await {
         Ok(handle) => {
             log::info!("Advertising as '{}' started", args.name);
@@ -134,9 +149,8 @@ pub async fn run_ble_server(args: Args, custom_config: CustomConfig) -> bluer::R
             if start_mgmt_advertisement(suuid::SERVICE_ID, &args.name).await {
                 log::info!("Advertising via Linux MGMT fallback started");
                 None
-            } else if start_hci_advertisement(suuid::SERVICE_ID).await {
+            } else if start_hci_advertisement(suuid::SERVICE_ID, &args.name).await {
                 log::info!("Advertising via hcitool fallback started");
-                hci_watchdog = Some(tokio::spawn(maintain_hci_advertisement()));
                 None
             } else {
                 return Err(err);
@@ -150,11 +164,9 @@ pub async fn run_ble_server(args: Args, custom_config: CustomConfig) -> bluer::R
     tokio::signal::ctrl_c().await.ok();
 
     log::info!("Shutting down...");
+    pairable_guard.abort();
     if adv_handle.is_none() {
         stop_mgmt_advertisement().await;
-        if let Some(task) = hci_watchdog {
-            task.abort();
-        }
         stop_hci_advertisement().await;
     }
     drop(adv_handle);
@@ -193,24 +205,29 @@ async fn start_mgmt_advertisement(service_uuid: &str, local_name: &str) -> bool 
 async fn stop_mgmt_advertisement() {
     let _ = timeout(
         Duration::from_secs(3),
-        task::spawn_blocking(|| mgmt_remove_advertising(0)),
+        task::spawn_blocking(|| mgmt_remove_advertising(MGMT_ADV_INSTANCE)),
     )
     .await;
 }
 
-async fn start_hci_advertisement(service_uuid: &str) -> bool {
+async fn start_hci_advertisement(service_uuid: &str, local_name: &str) -> bool {
     stop_hci_advertisement().await;
 
     let set_params = [
-        "cmd", "0x08", "0x0006", "00", "08", "00", "08", "00", "00", "00", "00", "00", "00", "00",
-        "00", "07", "00",
+        "cmd", "0x08", "0x0006", "A0", "00", "A0", "00", "00", "00", "00", "00", "00", "00",
+        "00", "00", "00", "07", "00",
     ];
     if !run_hcitool_success(&set_params).await {
         return false;
     }
 
-    let adv_data = hci_service_uuid_adv_data(service_uuid);
-    if !run_hcitool_success(&adv_data).await {
+    let adv_data = hci_service_uuid_adv_data(service_uuid, local_name);
+    if !run_hcitool_success_owned(&adv_data).await {
+        return false;
+    }
+
+    let scan_rsp = hci_local_name_scan_rsp_data(local_name);
+    if !run_hcitool_success_owned(&scan_rsp).await {
         return false;
     }
 
@@ -219,14 +236,6 @@ async fn start_hci_advertisement(service_uuid: &str) -> bool {
 
 async fn stop_hci_advertisement() {
     let _ = run_hcitool(&["cmd", "0x08", "0x000A", "00"]).await;
-}
-
-async fn maintain_hci_advertisement() {
-    let mut ticker = interval(Duration::from_secs(3));
-    loop {
-        ticker.tick().await;
-        let _ = run_hcitool(&["cmd", "0x08", "0x000A", "01"]).await;
-    }
 }
 
 async fn run_hcitool_success(args: &[&str]) -> bool {
@@ -249,6 +258,11 @@ async fn run_hcitool_success(args: &[&str]) -> bool {
     }
 }
 
+async fn run_hcitool_success_owned(args: &[String]) -> bool {
+    let refs = args.iter().map(String::as_str).collect::<Vec<_>>();
+    run_hcitool_success(&refs).await
+}
+
 async fn run_hcitool(args: &[&str]) -> std::io::Result<std::process::Output> {
     let mut command_args = vec!["-i", "hci0"];
     command_args.extend_from_slice(args);
@@ -268,20 +282,66 @@ async fn run_command(program: &str, args: &[&str]) -> std::io::Result<std::proce
     }
 }
 
-fn hci_service_uuid_adv_data(service_uuid: &str) -> Vec<&'static str> {
+fn hci_service_uuid_adv_data(service_uuid: &str, local_name: &str) -> Vec<String> {
+    let mut bytes = Vec::with_capacity(31);
+    bytes.extend_from_slice(&[0x02, 0x01, 0x06]);
+
     match service_uuid {
-        "FD2B4448AA0F4A15A62FEB0BE77A0000" => vec![
-            "cmd", "0x08", "0x0008", "15", "02", "01", "06", "11", "07", "00", "00", "7A", "E7",
-            "0B", "EB", "2F", "A6", "15", "4A", "0F", "AA", "48", "44", "2B", "FD", "00", "00",
-            "00", "00", "00", "00", "00", "00", "00", "00",
-        ],
-        _ => vec!["cmd", "0x08", "0x0008", "03", "02", "01", "06"],
+        "FD2B4448AA0F4A15A62FEB0BE77A0000" => {
+            bytes.extend_from_slice(&[
+                0x11, 0x07, 0x00, 0x00, 0x7A, 0xE7, 0x0B, 0xEB, 0x2F, 0xA6, 0x15, 0x4A, 0x0F,
+                0xAA, 0x48, 0x44, 0x2B, 0xFD,
+            ]);
+        }
+        _ => {}
     }
+
+    let short_name = truncate_utf8(local_name.trim(), 8);
+    if !short_name.is_empty() && bytes.len() + short_name.len() + 2 <= 31 {
+        bytes.push((short_name.len() + 1) as u8);
+        bytes.push(0x08); // Shortened Local Name
+        bytes.extend_from_slice(short_name.as_bytes());
+    }
+
+    let data_len = bytes.len();
+    bytes.resize(31, 0);
+
+    let mut args = vec![
+        "cmd".to_string(),
+        "0x08".to_string(),
+        "0x0008".to_string(),
+        format!("{data_len:02X}"),
+    ];
+    args.extend(bytes.into_iter().map(|byte| format!("{byte:02X}")));
+    args
+}
+
+fn hci_local_name_scan_rsp_data(local_name: &str) -> Vec<String> {
+    let local_name = truncate_utf8(local_name.trim(), 29);
+    let mut bytes = Vec::with_capacity(31);
+    if !local_name.is_empty() {
+        bytes.push((local_name.len() + 1) as u8);
+        bytes.push(0x09);
+        bytes.extend_from_slice(local_name.as_bytes());
+    }
+    bytes.resize(31, 0);
+
+    let mut args = vec![
+        "cmd".to_string(),
+        "0x08".to_string(),
+        "0x0009".to_string(),
+        format!("{:02X}", (local_name.len() + 2).min(31)),
+    ];
+    args.extend(bytes.into_iter().map(|byte| format!("{byte:02X}")));
+    args
 }
 
 fn hci_command_succeeded(stdout: &[u8]) -> bool {
     String::from_utf8_lossy(stdout).lines().any(|line| {
-        line.trim() == "01 0A 20 00" || line.trim() == "01 08 20 00" || line.trim() == "01 06 20 00"
+        line.trim() == "01 0A 20 00"
+            || line.trim() == "01 09 20 00"
+            || line.trim() == "01 08 20 00"
+            || line.trim() == "01 06 20 00"
     })
 }
 
@@ -295,6 +355,7 @@ const MGMT_STATUS_SUCCESS: u8 = 0x00;
 const MGMT_STATUS_INVALID_PARAMS: u8 = 0x0d;
 const MGMT_ADV_FLAG_CONNECTABLE: u32 = 1 << 0;
 const MGMT_ADV_FLAG_MANAGED_FLAGS: u32 = 1 << 3;
+const MGMT_ADV_INSTANCE: u8 = 1;
 
 const HCI_CHANNEL_CONTROL: u16 = 3;
 const HCI_DEV_NONE: u16 = 0xffff;
@@ -310,15 +371,15 @@ struct SockAddrHci {
 fn mgmt_add_advertising(service_uuid: &str, local_name: &str) -> std::io::Result<()> {
     let socket = MgmtSocket::open()?;
 
-    let _ = socket.send_cmd(MGMT_OP_REMOVE_ADVERTISING, MGMT_INDEX, &[0x00]);
+    let _ = socket.send_cmd(MGMT_OP_REMOVE_ADVERTISING, MGMT_INDEX, &[MGMT_ADV_INSTANCE]);
     if let Err(err) = socket.send_cmd(MGMT_OP_SET_BONDABLE, MGMT_INDEX, &[0x00]) {
         log::warn!("Failed to disable Bluetooth bonding via MGMT: {}", err);
     }
 
-    let adv_data = mgmt_service_uuid_adv_data(service_uuid);
+    let adv_data = mgmt_service_uuid_adv_data(service_uuid, local_name);
     let scan_rsp = mgmt_local_name_scan_rsp(local_name);
     let mut payload = Vec::with_capacity(11 + adv_data.len() + scan_rsp.len());
-    payload.push(1); // instance
+    payload.push(MGMT_ADV_INSTANCE);
     payload.extend_from_slice(
         &(MGMT_ADV_FLAG_CONNECTABLE | MGMT_ADV_FLAG_MANAGED_FLAGS).to_le_bytes(),
     );
@@ -466,14 +527,25 @@ impl Drop for MgmtSocket {
     }
 }
 
-fn mgmt_service_uuid_adv_data(service_uuid: &str) -> Vec<u8> {
-    match service_uuid {
+fn mgmt_service_uuid_adv_data(service_uuid: &str, local_name: &str) -> Vec<u8> {
+    let mut data = match service_uuid {
         "FD2B4448AA0F4A15A62FEB0BE77A0000" => vec![
             0x11, 0x07, 0x00, 0x00, 0x7A, 0xE7, 0x0B, 0xEB, 0x2F, 0xA6, 0x15, 0x4A, 0x0F, 0xAA,
             0x48, 0x44, 0x2B, 0xFD,
         ],
         _ => Vec::new(),
+    };
+
+    // The kernel owns the 3-byte Flags field when MANAGED_FLAGS is set, so
+    // callers have 28 bytes left in the legacy advertising payload.
+    let short_name = truncate_utf8(local_name.trim(), 8);
+    if !short_name.is_empty() && data.len() + short_name.len() + 2 <= 28 {
+        data.push((short_name.len() + 1) as u8);
+        data.push(0x08); // Shortened Local Name
+        data.extend_from_slice(short_name.as_bytes());
     }
+
+    data
 }
 
 fn mgmt_local_name_scan_rsp(local_name: &str) -> Vec<u8> {
