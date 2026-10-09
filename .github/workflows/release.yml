@@ -101,8 +101,19 @@ jobs:
         if: matrix.build_tool == 'zigbuild'
         run: |
           sudo dpkg --add-architecture armhf
-          sudo apt-get update
-          sudo apt-get install -y libdbus-1-dev:armhf pkg-config
+          sudo flock --wait 300 /var/lock/sugar-wifi-conf-actions-apt.lock bash -c '
+            for attempt in {1..6}; do
+              if apt-get -o DPkg::Lock::Timeout=60 update &&
+                 apt-get -o DPkg::Lock::Timeout=60 install -y libdbus-1-dev:armhf pkg-config; then
+                exit 0
+              fi
+              if [ "$attempt" -eq 6 ]; then
+                exit 1
+              fi
+              echo "apt is busy; retrying in 10 seconds ($attempt/6)" >&2
+              sleep 10
+            done
+          '
           pip3 install ziglang --break-system-packages || pip3 install ziglang
           cargo install cargo-zigbuild
 
@@ -287,8 +298,19 @@ jobs:
 
       - name: Install dependencies
         run: |
-          sudo apt-get update
-          sudo apt-get install -y libdbus-1-dev libgtk-3-dev libxdo-dev pkg-config
+          sudo flock --wait 300 /var/lock/sugar-wifi-conf-actions-apt.lock bash -c '
+            for attempt in {1..6}; do
+              if apt-get -o DPkg::Lock::Timeout=60 update &&
+                 apt-get -o DPkg::Lock::Timeout=60 install -y libdbus-1-dev libgtk-3-dev libxdo-dev pkg-config; then
+                exit 0
+              fi
+              if [ "$attempt" -eq 6 ]; then
+                exit 1
+              fi
+              echo "apt is busy; retrying in 10 seconds ($attempt/6)" >&2
+              sleep 10
+            done
+          '
 
       - name: Build ble-ssh
         working-directory: ble-ssh-client
