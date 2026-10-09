@@ -52,7 +52,7 @@ pub fn build() -> Vec<Characteristic> {
             ctrl_notify_tx.clone(),
             ctrl_notify_rx,
         ),
-        build_rx(tcp_write_tx),
+        build_rx(tcp_write_tx, tunnel.clone()),
         build_tx(ble_tx_sender.clone()),
     ]
 }
@@ -100,12 +100,17 @@ fn build_ctrl(
                                     state.tcp_tx = None;
                                 }
 
+                                // The receiver is shared between tunnel tasks. A stopped task
+                                // does not consume messages that were already queued, so without
+                                // draining here those bytes are written into the next sshd socket
+                                // before the new SSH banner and corrupt its handshake.
+                                drain_tcp_write_queue(&tcp_write_rx).await;
+
                                 // Connect to local sshd
                                 match TcpStream::connect("127.0.0.1:22").await {
                                     Ok(stream) => {
                                         log::info!("SSH tunnel: connected to sshd");
-                                        let (tcp_read, tcp_write) =
-                                            tokio::io::split(stream);
+                                        let (tcp_read, tcp_write) = tokio::io::split(stream);
 
                                         let (shutdown_tx, shutdown_rx) =
                                             tokio::sync::oneshot::channel();
@@ -134,7 +139,10 @@ fn build_ctrl(
                                         let ctrl_tx3 = ctrl_tx.clone();
                                         let rx = tcp_write_rx.clone();
                                         tokio::spawn(tcp_write_task(
-                                            tunnel2, rx, ctrl_tx3, write_shutdown_rx,
+                                            tunnel2,
+                                            rx,
+                                            ctrl_tx3,
+                                            write_shutdown_rx,
                                         ));
 
                                         log::info!("SSH tunnel: sending OK");
@@ -142,20 +150,22 @@ fn build_ctrl(
                                     }
                                     Err(e) => {
                                         log::error!("SSH tunnel: failed to connect: {}", e);
-                                        let _ = ctrl_tx
-                                            .send(format!("ERR:{}", e));
+                                        let _ = ctrl_tx.send(format!("ERR:{}", e));
                                     }
                                 }
                             }
                             "DISCONNECT" => {
-                                let mut state = tunnel.lock().await;
-                                if let Some(shutdown) = state.shutdown_tx.take() {
-                                    let _ = shutdown.send(());
+                                {
+                                    let mut state = tunnel.lock().await;
+                                    if let Some(shutdown) = state.shutdown_tx.take() {
+                                        let _ = shutdown.send(());
+                                    }
+                                    if let Some(shutdown) = state.write_shutdown_tx.take() {
+                                        let _ = shutdown.send(());
+                                    }
+                                    state.tcp_tx = None;
                                 }
-                                if let Some(shutdown) = state.write_shutdown_tx.take() {
-                                    let _ = shutdown.send(());
-                                }
-                                state.tcp_tx = None;
+                                drain_tcp_write_queue(&tcp_write_rx).await;
                                 let _ = ctrl_tx.send("CLOSED".to_string());
                                 log::info!("SSH tunnel: disconnected");
                             }
@@ -206,7 +216,10 @@ fn build_ctrl(
 
 /// SSH_RX characteristic: write-without-response.
 /// Client sends raw SSH bytes here → forwarded to TCP.
-fn build_rx(tcp_write_tx: mpsc::Sender<Vec<u8>>) -> Characteristic {
+fn build_rx(
+    tcp_write_tx: mpsc::Sender<Vec<u8>>,
+    tunnel: Arc<Mutex<TunnelState>>,
+) -> Characteristic {
     Characteristic {
         uuid: suuid::parse_uuid(suuid::SSH_RX),
         write: Some(CharacteristicWrite {
@@ -215,8 +228,13 @@ fn build_rx(tcp_write_tx: mpsc::Sender<Vec<u8>>) -> Characteristic {
             method: CharacteristicWriteMethod::Fun(Box::new(
                 move |data: Vec<u8>, _req: CharacteristicWriteRequest| {
                     let tx = tcp_write_tx.clone();
+                    let tunnel = tunnel.clone();
                     async move {
                         log::info!("SSH_RX: received {} bytes", data.len());
+                        if tunnel.lock().await.tcp_tx.is_none() {
+                            log::warn!("SSH_RX: tunnel not connected, data dropped");
+                            return Ok(());
+                        }
                         if tx.send(data).await.is_err() {
                             log::warn!("SSH_RX: tunnel not connected, data dropped");
                         }
@@ -228,6 +246,17 @@ fn build_rx(tcp_write_tx: mpsc::Sender<Vec<u8>>) -> Characteristic {
             ..Default::default()
         }),
         ..Default::default()
+    }
+}
+
+async fn drain_tcp_write_queue(rx: &Arc<Mutex<mpsc::Receiver<Vec<u8>>>>) {
+    let mut rx = rx.lock().await;
+    let mut drained = 0usize;
+    while rx.try_recv().is_ok() {
+        drained += 1;
+    }
+    if drained > 0 {
+        log::info!("SSH tunnel: discarded {} stale RX packets", drained);
     }
 }
 
@@ -253,7 +282,8 @@ fn build_tx(ble_tx_sender: Arc<broadcast::Sender<Vec<u8>>>) -> Characteristic {
                                 for chunk in data.chunks(182) {
                                     if let Err(e) = notifier.notify(chunk.to_vec()).await {
                                         log::info!("SSH_TX notify error: {:?}, retrying once", e);
-                                        tokio::time::sleep(tokio::time::Duration::from_millis(10)).await;
+                                        tokio::time::sleep(tokio::time::Duration::from_millis(10))
+                                            .await;
                                         if notifier.notify(chunk.to_vec()).await.is_err() {
                                             log::info!("SSH_TX subscriber disconnected");
                                             return;
