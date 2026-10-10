@@ -19,6 +19,9 @@ struct TunnelState {
     shutdown_tx: Option<tokio::sync::oneshot::Sender<()>>,
     /// Sender to stop the TCP write task.
     write_shutdown_tx: Option<tokio::sync::oneshot::Sender<()>>,
+    /// CONNECT2 enables ordered, acknowledged SSH_RX frames.
+    framed_rx: bool,
+    expected_rx_sequence: u32,
 }
 
 /// Build all 3 SSH tunnel characteristics.
@@ -38,6 +41,8 @@ pub fn build() -> Vec<Characteristic> {
         tcp_tx: None,
         shutdown_tx: None,
         write_shutdown_tx: None,
+        framed_rx: false,
+        expected_rx_sequence: 0,
     }));
 
     // Channel for control responses
@@ -52,7 +57,7 @@ pub fn build() -> Vec<Characteristic> {
             ctrl_notify_tx.clone(),
             ctrl_notify_rx,
         ),
-        build_rx(tcp_write_tx, tunnel.clone()),
+        build_rx(tcp_write_tx),
         build_tx(ble_tx_sender.clone()),
     ]
 }
@@ -87,7 +92,7 @@ fn build_ctrl(
                         log::info!("SSH_CTRL command: {}", cmd);
 
                         match cmd {
-                            "CONNECT" => {
+                            "CONNECT" | "CONNECT2" => {
                                 // Close existing tunnel if any
                                 {
                                     let mut state = tunnel.lock().await;
@@ -98,6 +103,8 @@ fn build_ctrl(
                                         let _ = shutdown.send(());
                                     }
                                     state.tcp_tx = None;
+                                    state.framed_rx = cmd == "CONNECT2";
+                                    state.expected_rx_sequence = 0;
                                 }
 
                                 // The receiver is shared between tunnel tasks. A stopped task
@@ -164,6 +171,8 @@ fn build_ctrl(
                                         let _ = shutdown.send(());
                                     }
                                     state.tcp_tx = None;
+                                    state.framed_rx = false;
+                                    state.expected_rx_sequence = 0;
                                 }
                                 drain_tcp_write_queue(&tcp_write_rx).await;
                                 let _ = ctrl_tx.send("CLOSED".to_string());
@@ -216,10 +225,7 @@ fn build_ctrl(
 
 /// SSH_RX characteristic: write-without-response.
 /// Client sends raw SSH bytes here → forwarded to TCP.
-fn build_rx(
-    tcp_write_tx: mpsc::Sender<Vec<u8>>,
-    tunnel: Arc<Mutex<TunnelState>>,
-) -> Characteristic {
+fn build_rx(tcp_write_tx: mpsc::Sender<Vec<u8>>) -> Characteristic {
     Characteristic {
         uuid: suuid::parse_uuid(suuid::SSH_RX),
         write: Some(CharacteristicWrite {
@@ -227,16 +233,26 @@ fn build_rx(
             write_without_response: true,
             method: CharacteristicWriteMethod::Fun(Box::new(
                 move |data: Vec<u8>, _req: CharacteristicWriteRequest| {
-                    let tx = tcp_write_tx.clone();
-                    let tunnel = tunnel.clone();
+                    // Enqueue synchronously, in the exact order BlueZ invokes
+                    // the GATT callbacks. Spawning an async send per write can
+                    // reorder adjacent encrypted SSH packets during fast input.
+                    log::info!("SSH_RX: received {} bytes", data.len());
+                    let result = tcp_write_tx.try_send(data);
                     async move {
-                        log::info!("SSH_RX: received {} bytes", data.len());
-                        if tunnel.lock().await.tcp_tx.is_none() {
-                            log::warn!("SSH_RX: tunnel not connected, data dropped");
-                            return Ok(());
-                        }
-                        if tx.send(data).await.is_err() {
-                            log::warn!("SSH_RX: tunnel not connected, data dropped");
+                        match result {
+                            Ok(()) => {}
+                            Err(mpsc::error::TrySendError::Full(data)) => {
+                                log::error!(
+                                    "SSH_RX: ordered write queue full, dropped {} bytes",
+                                    data.len()
+                                );
+                            }
+                            Err(mpsc::error::TrySendError::Closed(data)) => {
+                                log::warn!(
+                                    "SSH_RX: tunnel not connected, dropped {} bytes",
+                                    data.len()
+                                );
+                            }
                         }
                         Ok(())
                     }
@@ -268,7 +284,11 @@ fn build_tx(ble_tx_sender: Arc<broadcast::Sender<Vec<u8>>>) -> Characteristic {
     Characteristic {
         uuid: suuid::parse_uuid(suuid::SSH_TX),
         notify: Some(CharacteristicNotify {
-            notify: true,
+            // SSH is a byte stream: losing a single GATT packet corrupts the
+            // encrypted stream and sshd immediately closes the connection.
+            // Use acknowledged indications instead of lossy notifications so
+            // CoreBluetooth provides backpressure during output bursts.
+            indicate: true,
             method: CharacteristicNotifyMethod::Fun(Box::new(move |mut notifier| {
                 let mut rx = ble_tx_sender.subscribe();
                 async move {
@@ -366,14 +386,53 @@ async fn tcp_write_task(
             data = rx.recv() => {
                 match data {
                     Some(data) => {
-                        log::info!("SSH tunnel: writing {} bytes to sshd", data.len());
                         let mut state = tunnel.lock().await;
+                        let (sequence, payload) = if state.framed_rx {
+                            if data.len() < 8 || &data[..4] != b"PSRX" {
+                                log::warn!("SSH_RX: malformed ordered frame ({} bytes)", data.len());
+                                let _ = ctrl_tx.send(format!(
+                                    "NACK:{}",
+                                    state.expected_rx_sequence
+                                ));
+                                continue;
+                            }
+                            let sequence = u32::from_be_bytes([
+                                data[4], data[5], data[6], data[7],
+                            ]);
+                            if sequence == state.expected_rx_sequence.wrapping_sub(1) {
+                                // The ACK was lost. Confirm the retry without writing
+                                // the encrypted SSH bytes into the stream twice.
+                                let _ = ctrl_tx.send(format!("ACK:{}", sequence));
+                                continue;
+                            }
+                            if sequence != state.expected_rx_sequence {
+                                log::warn!(
+                                    "SSH_RX: expected ordered frame {}, received {}",
+                                    state.expected_rx_sequence,
+                                    sequence
+                                );
+                                let _ = ctrl_tx.send(format!(
+                                    "NACK:{}",
+                                    state.expected_rx_sequence
+                                ));
+                                continue;
+                            }
+                            (Some(sequence), &data[8..])
+                        } else {
+                            (None, data.as_slice())
+                        };
+                        log::info!("SSH tunnel: writing {} bytes to sshd", payload.len());
                         if let Some(ref mut tcp_tx) = state.tcp_tx {
-                            if let Err(e) = tcp_tx.write_all(&data).await {
+                            if let Err(e) = tcp_tx.write_all(payload).await {
                                 log::error!("SSH tunnel write error: {}", e);
                                 let _ = ctrl_tx.send(format!("ERR:{}", e));
                                 state.tcp_tx = None;
                                 return;
+                            }
+                            if let Some(sequence) = sequence {
+                                state.expected_rx_sequence =
+                                    state.expected_rx_sequence.wrapping_add(1);
+                                let _ = ctrl_tx.send(format!("ACK:{}", sequence));
                             }
                         }
                     }
